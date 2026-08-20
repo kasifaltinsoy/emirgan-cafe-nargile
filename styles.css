@@ -118,13 +118,16 @@ main { max-width: 900px; margin: 0 auto; padding: 16px; }
 }
 .product-name { font-weight: 800; line-height: 1.25; }
 .product-price { color: var(--muted); font-size: 12px; margin-top: 4px; }
-.product-actions { display: grid; grid-template-columns: 1fr 48px; gap: 8px; align-items: center; }
+.product-actions { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
 .daily-count { font-size: 12px; color: var(--muted); }
-.add-btn {
+.qty-buttons { display: flex; gap: 7px; }
+.add-btn, .minus-btn {
   width: 48px; height: 48px; border: 0; border-radius: 16px;
   background: rgba(255,255,255,.78); color: #384239; font-size: 26px; font-weight: 500;
   box-shadow: 0 5px 18px rgba(0,0,0,.07);
 }
+.minus-btn { color: #7a665e; }
+.minus-btn:disabled { opacity: .32; box-shadow: none; cursor: default; }
 
 .recent-card { margin-top: 16px; padding: 16px; }
 .section-heading { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 14px; }

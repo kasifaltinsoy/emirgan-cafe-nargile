@@ -214,7 +214,10 @@ function renderProducts() {
         </div>
         <div class="product-actions">
           <div class="daily-count">Bugün: <strong>${count}</strong></div>
-          <button class="add-btn" data-add-product="${p.id}" aria-label="${escapeHtml(p.name)} ekle">+</button>
+          <div class="qty-buttons">
+            <button class="minus-btn" data-remove-product="${p.id}" aria-label="${escapeHtml(p.name)} azalt" ${count === 0 ? "disabled" : ""}>−</button>
+            <button class="add-btn" data-add-product="${p.id}" aria-label="${escapeHtml(p.name)} ekle">+</button>
+          </div>
         </div>
       </article>
     `;
@@ -223,6 +226,24 @@ function renderProducts() {
   document.querySelectorAll("[data-add-product]").forEach(btn => {
     btn.addEventListener("click", () => addOrder(btn.dataset.addProduct));
   });
+
+  document.querySelectorAll("[data-remove-product]").forEach(btn => {
+    btn.addEventListener("click", () => removeLastProductOrder(btn.dataset.removeProduct));
+  });
+}
+
+async function removeLastProductOrder(productId) {
+  if (!state.activeMember) return;
+
+  const matching = todayOrders()
+    .filter(o => o.productId === productId && o.member === state.activeMember)
+    .sort((a, b) => orderDate(b) - orderDate(a));
+
+  if (!matching.length) return toast("Geri alınacak sipariş yok.");
+
+  const last = matching[0];
+  await deleteDoc(doc(db, "orders", last.id));
+  toast(`${last.productName} • 1 adet geri alındı`);
 }
 
 async function addOrder(productId) {
