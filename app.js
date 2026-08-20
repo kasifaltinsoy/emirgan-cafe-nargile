@@ -26,7 +26,7 @@ import {
   updateDoc
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
-const APP_VERSION = "v12";
+const APP_VERSION = "v13";
 
 const CATEGORIES = [
   { id: "icecekler", label: "İçecekler", icon: "☕", color: "#e5f2f5" },

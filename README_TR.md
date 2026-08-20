@@ -103,3 +103,7 @@ Seçili geliştirmeler:
 12. iOS/PWA ikonları, safe-area, çevrimdışı uyarısı ve geliştirilmiş mobil görünüm.
 
 Not: 4 haneli PIN, ortak Firebase hesabını kullanan kişiler arasında yanlışlıkla yapılan kritik işlemlere karşı ek korumadır; ayrı bir kimlik doğrulama güvenlik katmanı değildir.
+
+
+## V13
+Seçilen yeni Emirgan Cafe & Nargile logosu uygulama içi marka logosu, PWA ana ekran ikonu ve Apple Touch Icon olarak entegre edildi. Tema rengi koyu Emirgan yeşiline göre güncellendi.

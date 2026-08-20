@@ -3,8 +3,8 @@
   "short_name": "Emirgan",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#f8f6f1",
-  "theme_color": "#eef3ee",
+  "background_color": "#f7f2e8",
+  "theme_color": "#133b2b",
   "description": "Kaşif ve Ayşe Merve için sipariş ve hesap takip uygulaması",
   "icons": [
     {
