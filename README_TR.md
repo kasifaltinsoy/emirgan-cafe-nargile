@@ -75,3 +75,17 @@ Fiyat Geçmişi bölümüne 'Geçmişi Sıfırla' butonu eklendi. Bu işlem yaln
 
 ## V10
 Sık Kullanılanlar artık doğrudan kendi sekmesinden yönetilir. + Ürün Ekle ile ürün seçilebilir, aynı ekrandan favoriden çıkarılabilir. Ayarlar bölümündeki favori yönetimi kaldırıldı.
+
+
+## V11
+- Hesap dönemi arşivi
+- Dönem bazında ödendi işareti
+- Kafe hesabıyla mutabakat ve fark
+- Dönem/ay karşılaştırmalı istatistikler
+- Sık kullanılanlarda sürükle-bırak + oklarla sıralama
+- Siparişte kısa titreşim ve görsel onay
+- Son 5 sipariş hızlı tekrar şeridi
+- Dönem PDF/yazdır özeti
+- JSON yedekten geri yükleme
+- Sistem veri bütünlüğü kontrolü
+- Ayrı Arşiv sekmesi

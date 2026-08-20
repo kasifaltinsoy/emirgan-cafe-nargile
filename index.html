@@ -95,6 +95,13 @@
             <input id="productSearch" type="search" placeholder="Ürün ara…" autocomplete="off" />
           </div>
 
+          <section class="quick-recent-section">
+            <div class="section-heading compact-heading">
+              <h3>Son 5 Sipariş</h3>
+            </div>
+            <div id="recentQuickStrip" class="quick-recent-strip"></div>
+          </section>
+
           <section id="favoritesSection" class="favorites-section">
             <div class="section-heading compact-heading">
               <h3>⭐ Sık Siparişler</h3>
@@ -118,7 +125,7 @@
           <div class="section-heading">
             <div>
               <h2>Sık Kullanılanlar</h2>
-              <p>Favorilerinizi doğrudan buradan ekleyip kaldırabilirsiniz.</p>
+              <p>Favorilerinizi doğrudan buradan ekleyin; sürükleyerek veya oklarla sıralayın.</p>
             </div>
             <button id="manageFavoritesButton" class="secondary-btn favorites-manage-btn">+ Ürün Ekle</button>
           </div>
@@ -166,6 +173,22 @@
             <button class="filter-chip" data-report-person="Ayşe Merve">Ayşe Merve</button>
           </div>
           <div id="billingCycleCard" class="card billing-cycle-card"></div>
+          <div class="card reconciliation-card">
+            <div class="section-heading compact-heading">
+              <div>
+                <h3>Dönem Mutabakatı</h3>
+                <p>Kafenin 19'unda bildirdiği toplamı girin; uygulama farkı hesaplasın.</p>
+              </div>
+            </div>
+            <div class="reconciliation-controls">
+              <label>Kafe hesabı (TL)
+                <input id="cafeStatementAmount" type="number" min="0" step="0.01" placeholder="Örn. 9250" />
+              </label>
+              <button id="saveReconciliationButton" class="secondary-btn">Mutabakatı Kaydet</button>
+              <button id="markCyclePaidButton" class="primary-btn">Dönemi Ödendi İşaretle</button>
+            </div>
+            <div id="reconciliationResult" class="reconciliation-result"></div>
+          </div>
           <div id="reportCards" class="report-cards"></div>
 
           <div class="card range-card">
@@ -188,6 +211,7 @@
             <div class="settings-actions">
               <button id="exportCsvButton" class="secondary-btn">CSV / Excel İndir</button>
               <button id="backupJsonButton" class="secondary-btn">JSON Yedek Al</button>
+              <button id="printCyclePdfButton" class="secondary-btn">Dönem PDF Özeti</button>
             </div>
           </div>
 
@@ -217,6 +241,17 @@
             <h3>Ürün Bazında</h3>
             <div id="productReport" class="report-table"></div>
           </div>
+        </section>
+
+        <section id="archivePanel" class="panel">
+          <div class="section-heading">
+            <div>
+              <h2>Arşiv</h2>
+              <p>20'si–18'i hesap dönemleri, ödeme durumu ve mutabakat kayıtları.</p>
+            </div>
+          </div>
+          <div id="archiveCurrentCycle" class="card archive-current"></div>
+          <div id="archiveCycleList" class="archive-cycle-list"></div>
         </section>
 
         <section id="settingsPanel" class="panel">
@@ -278,6 +313,10 @@
             <div class="settings-actions">
               <button id="deleteTodayButton" class="danger-btn">Bugünkü Kayıtları Sıfırla</button>
               <button id="backupJsonButtonSettings" class="secondary-btn">Yedek Al</button>
+              <label class="file-button secondary-btn">Yedeği Geri Yükle
+                <input id="restoreBackupInput" type="file" accept=".json,application/json" hidden />
+              </label>
+              <button id="systemCheckButton" class="secondary-btn">Sistemi Kontrol Et</button>
             </div>
           </div>
 
@@ -291,6 +330,8 @@
             </div>
             <div id="trashList" class="trash-list"></div>
           </div>
+
+          <div id="systemCheckResult" class="card settings-card hidden"></div>
 
           <div class="card settings-card">
             <h3>Uygulama</h3>
@@ -315,6 +356,7 @@
         <button class="nav-btn" data-panel="favoritesPanel"><span>★</span>Sık</button>
         <button class="nav-btn" data-panel="historyPanel"><span>◷</span>Geçmiş</button>
         <button class="nav-btn" data-panel="reportsPanel"><span>▥</span>Raporlar</button>
+        <button class="nav-btn" data-panel="archivePanel"><span>▤</span>Arşiv</button>
         <button class="nav-btn" data-panel="settingsPanel"><span>⚙</span>Ayarlar</button>
       </nav>
 

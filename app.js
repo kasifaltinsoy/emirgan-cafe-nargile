@@ -26,7 +26,7 @@ import {
   updateDoc
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
-const APP_VERSION = "v10";
+const APP_VERSION = "v11";
 
 const CATEGORIES = [
   { id: "icecekler", label: "İçecekler", icon: "☕", color: "#e5f2f5" },
@@ -68,12 +68,14 @@ const state = {
   priceHistory: [],
   dayStatus: {},
   trash: [],
+  billingCycles: {},
   search: "",
   unsubProducts: null,
   unsubOrders: null,
   unsubPriceHistory: null,
   unsubDayStatus: null,
-  unsubTrash: null
+  unsubTrash: null,
+  unsubBillingCycles: null
 };
 
 const views = { login: $("loginView"), member: $("memberView"), main: $("mainView") };
@@ -119,6 +121,30 @@ function cycleLabel(c=getBillingCycle()){
   return `${f(c.start)} – ${f(c.end)}`;
 }
 
+function cycleId(c=getBillingCycle()){
+  return `${c.startKey}__${c.endKey}`;
+}
+
+function cycleForDateKey(dateKey){
+  const d=new Date(dateKey+"T12:00:00");
+  return getBillingCycle(d);
+}
+
+function allCycleRanges(){
+  const dates=state.orders.map(o=>o.dateKey).filter(Boolean).sort();
+  if(!dates.length) return [getBillingCycle()];
+  const first=cycleForDateKey(dates[0]);
+  const last=getBillingCycle(new Date(dates[dates.length-1]+"T12:00:00"));
+  const ranges=[];
+  let cursor=new Date(first.start);
+  while(cursor<=last.start){
+    const c=getBillingCycle(cursor);
+    ranges.push(c);
+    cursor=new Date(c.start.getFullYear(),c.start.getMonth()+1,20);
+  }
+  return ranges.reverse();
+}
+
 function displayDate(date = new Date()) {
   return new Intl.DateTimeFormat("tr-TR", { weekday:"long", day:"2-digit", month:"long", year:"numeric" }).format(date);
 }
@@ -134,6 +160,18 @@ function usernameToEmail(username) {
 function toast(message) {
   const el = $("toast"); el.textContent = message; el.classList.remove("hidden");
   clearTimeout(toast.timer); toast.timer = setTimeout(() => el.classList.add("hidden"), 2400);
+}
+
+function hapticAddFeedback(productId){
+  if(navigator.vibrate) navigator.vibrate(35);
+  const btn=document.querySelector(`[data-add-product="${productId}"]`);
+  const card=btn?.closest(".product-card");
+  if(card){
+    card.classList.remove("just-added");
+    void card.offsetWidth;
+    card.classList.add("just-added");
+    setTimeout(()=>card.classList.remove("just-added"),650);
+  }
 }
 function categoryById(id) { return CATEGORIES.find(c => c.id === id) || CATEGORIES[0]; }
 function setTodayLabel() {
@@ -159,7 +197,7 @@ async function ensureDefaults() {
 }
 
 function startRealtime() {
-  [state.unsubProducts,state.unsubOrders,state.unsubPriceHistory,state.unsubDayStatus,state.unsubTrash].forEach(fn => fn && fn());
+  [state.unsubProducts,state.unsubOrders,state.unsubPriceHistory,state.unsubDayStatus,state.unsubTrash,state.unsubBillingCycles].forEach(fn => fn && fn());
 
   state.unsubProducts = onSnapshot(query(collection(db,"products"),orderBy("sortOrder")), snap => {
     state.products = snap.docs.map(d => ({id:d.id,...d.data()})); renderAll();
@@ -182,6 +220,12 @@ function startRealtime() {
     state.trash = snap.docs.map(d=>({id:d.id,...d.data()}));
     renderTrash();
   }, err => console.warn("trash",err));
+
+  state.unsubBillingCycles = onSnapshot(collection(db,"billingCycles"), snap => {
+    state.billingCycles = Object.fromEntries(snap.docs.map(d=>[d.id,{id:d.id,...d.data()}]));
+    renderReports();
+    renderArchive();
+  }, err => console.warn("billingCycles",err));
 }
 
 function renderCategoryTabs() {
@@ -256,6 +300,7 @@ async function addOrder(productId,note="") {
     unitPrice:product.price ?? null, note:note || "", dateKey:localDateKey(now), monthKey:localMonthKey(now),
     createdAtLocal:now.toISOString(), createdAt:serverTimestamp()
   });
+  hapticAddFeedback(product.id);
   toast(`${product.name} • ${state.activeMember} adına kaydedildi`);
 }
 
@@ -302,6 +347,20 @@ function renderToday() {
 
   const c=getBillingCycle();
   if($("cycleBadge")) $("cycleBadge").textContent=`${cycleLabel(c)} • ödeme: 19'u`;
+
+  const quick = today.slice(0,5);
+  $("recentQuickStrip").innerHTML = quick.length ? quick.map(o=>`
+    <button class="quick-recent-item" data-quick-repeat="${o.id}">
+      <strong>${escapeHtml(o.productName)}</strong>
+      <span>${displayTime(orderDate(o))} • ${escapeHtml(o.member)}</span>
+      <em>↻ Tekrarla</em>
+    </button>`).join("") : `<div class="empty quick-empty">Henüz sipariş yok.</div>`;
+  document.querySelectorAll("[data-quick-repeat]").forEach(btn=>btn.addEventListener("click",()=>{
+    const o=state.orders.find(x=>x.id===btn.dataset.quickRepeat);
+    if(!o)return;
+    const p=state.products.find(x=>x.id===o.productId);
+    if(p) addOrder(p.id,o.note||"");
+  }));
 
   const recent = today.slice(0,8);
   $("recentOrders").innerHTML = recent.length ? recent.map(orderRowHtml).join("") : `<div class="empty">Bugün henüz sipariş yok.</div>`;
@@ -415,6 +474,18 @@ function renderReports() {
     <div><span>Dönem Toplamı</span><strong>${money(totalOf(cycleOrders))}</strong></div>
     <div><span>Dönem Siparişi</span><strong>${cycleOrders.length} ürün</strong></div>
     <div><span>Ödeme Günü</span><strong>Her ayın 19'u</strong></div>`;
+  const cycleMeta=state.billingCycles[cycleId(cycle)]||{};
+  if($("cafeStatementAmount")) $("cafeStatementAmount").value=cycleMeta.cafeAmount??"";
+  const diff=(cycleMeta.cafeAmount===null||cycleMeta.cafeAmount===undefined)?null:Number(cycleMeta.cafeAmount)-totalOf(cycleOrders);
+  if($("reconciliationResult")) $("reconciliationResult").innerHTML=`
+    <div><span>Uygulama</span><strong>${money(totalOf(cycleOrders))}</strong></div>
+    <div><span>Kafe</span><strong>${cycleMeta.cafeAmount===undefined?"—":money(cycleMeta.cafeAmount)}</strong></div>
+    <div><span>Fark</span><strong class="${diff===null?"":(Math.abs(diff)<0.01?"ok":"warn")}">${diff===null?"—":money(diff)}</strong></div>
+    <div><span>Durum</span><strong>${cycleMeta.paid?"✓ Ödendi":"Bekliyor"}</strong></div>`;
+  if($("markCyclePaidButton")){
+    $("markCyclePaidButton").textContent=cycleMeta.paid?"✓ Dönem Ödendi":"Dönemi Ödendi İşaretle";
+    $("markCyclePaidButton").classList.toggle("cycle-paid",!!cycleMeta.paid);
+  }
 
   $("reportCards").innerHTML = `
     <div class="card report-card"><span>Toplam Sipariş</span><strong>${orders.length}</strong></div>
@@ -531,17 +602,49 @@ function renderPriceIncreaseAnalysis(){
 
 function renderPinnedFavorites(){
   if(!$("pinnedFavoritesGrid")) return;
-  const pinned=sortTr(state.products.filter(p=>p.active!==false&&p.favoritePinned));
+  const pinned=state.products
+    .filter(p=>p.active!==false&&p.favoritePinned)
+    .sort((a,b)=>(Number(a.favoriteOrder??9999)-Number(b.favoriteOrder??9999)) || a.name.localeCompare(b.name,"tr",{sensitivity:"base"}));
   const today=todayOrders();
-  $("pinnedFavoritesGrid").innerHTML=pinned.length?pinned.map(p=>{
-    const html=productCardHtml(p,today);
-    return html.replace("</article>", `<button class="remove-favorite-btn" data-unpin-product="${p.id}">★ Sık Kullanılanlardan Çıkar</button></article>`);
+  $("pinnedFavoritesGrid").innerHTML=pinned.length?pinned.map((p,i)=>{
+    const html=productCardHtml(p,today).replace('<article class="product-card"', `<article draggable="true" data-favorite-card="${p.id}" class="product-card favorite-draggable"`);
+    return html.replace("</article>", `
+      <div class="favorite-order-controls">
+        <button data-move-favorite="${p.id}" data-direction="-1" ${i===0?"disabled":""}>↑</button>
+        <button data-move-favorite="${p.id}" data-direction="1" ${i===pinned.length-1?"disabled":""}>↓</button>
+      </div>
+      <button class="remove-favorite-btn" data-unpin-product="${p.id}">★ Sık Kullanılanlardan Çıkar</button></article>`);
   }).join(""):`<div class="empty">Henüz sık kullanılan ürün eklemediniz. Yukarıdaki “+ Ürün Ekle” düğmesine basın.</div>`;
   bindProductButtons($("pinnedFavoritesGrid"));
   document.querySelectorAll("[data-unpin-product]").forEach(btn=>btn.addEventListener("click",async()=>{
     await updateDoc(doc(db,"products",btn.dataset.unpinProduct),{favoritePinned:false});
     toast("Sık kullanılanlardan çıkarıldı.");
   }));
+
+  document.querySelectorAll("[data-move-favorite]").forEach(btn=>btn.addEventListener("click",async()=>{
+    const id=btn.dataset.moveFavorite, dir=Number(btn.dataset.direction);
+    const current=[...pinned];
+    const i=current.findIndex(p=>p.id===id), j=i+dir;
+    if(i<0||j<0||j>=current.length)return;
+    [current[i],current[j]]=[current[j],current[i]];
+    await Promise.all(current.map((p,idx)=>updateDoc(doc(db,"products",p.id),{favoriteOrder:idx})));
+  }));
+
+  let dragId=null;
+  document.querySelectorAll("[data-favorite-card]").forEach(card=>{
+    card.addEventListener("dragstart",e=>{dragId=card.dataset.favoriteCard; card.classList.add("dragging");});
+    card.addEventListener("dragend",()=>{dragId=null; card.classList.remove("dragging");});
+    card.addEventListener("dragover",e=>e.preventDefault());
+    card.addEventListener("drop",async e=>{
+      e.preventDefault();
+      const targetId=card.dataset.favoriteCard;
+      if(!dragId||dragId===targetId)return;
+      const current=[...pinned];
+      const from=current.findIndex(p=>p.id===dragId), to=current.findIndex(p=>p.id===targetId);
+      const [moved]=current.splice(from,1); current.splice(to,0,moved);
+      await Promise.all(current.map((p,idx)=>updateDoc(doc(db,"products",p.id),{favoriteOrder:idx})));
+    });
+  });
 }
 
 function renderFavoritePicker(){
@@ -557,7 +660,11 @@ function renderFavoritePicker(){
   document.querySelectorAll("[data-picker-product]").forEach(btn=>btn.addEventListener("click",async()=>{
     const p=state.products.find(x=>x.id===btn.dataset.pickerProduct);
     if(!p) return;
-    await updateDoc(doc(db,"products",p.id),{favoritePinned:!p.favoritePinned});
+    const existingPinned=state.products.filter(x=>x.favoritePinned);
+    await updateDoc(doc(db,"products",p.id),{
+      favoritePinned:!p.favoritePinned,
+      favoriteOrder:p.favoritePinned ? (p.favoriteOrder??9999) : existingPinned.length
+    });
     toast(p.favoritePinned?"Sık kullanılanlardan çıkarıldı.":"Sık kullanılanlara eklendi.");
   }));
 }
@@ -602,6 +709,52 @@ function renderTrash(){
   document.querySelectorAll("[data-delete-trash]").forEach(btn=>btn.addEventListener("click",async()=>{
     if(!confirm("Bu kayıt çöp kutusundan kalıcı olarak silinsin mi?"))return;
     await deleteDoc(doc(db,"trash",btn.dataset.deleteTrash)); toast("Kayıt kalıcı silindi.");
+  }));
+}
+
+
+function renderArchive(){
+  if(!$("archiveCycleList")) return;
+  const ranges=allCycleRanges();
+  const current=getBillingCycle();
+  const currentOrders=ordersInCurrentCycle();
+  const currentMeta=state.billingCycles[cycleId(current)]||{};
+  $("archiveCurrentCycle").innerHTML=`
+    <span>Aktif Dönem</span>
+    <strong>${cycleLabel(current)}</strong>
+    <em>${currentOrders.length} ürün • ${money(totalOf(currentOrders))}</em>
+    <b>${currentMeta.paid?"✓ Ödendi":"Devam ediyor"}</b>`;
+
+  $("archiveCycleList").innerHTML=ranges.map(c=>{
+    const cid=cycleId(c);
+    const os=state.orders.filter(o=>o.dateKey>=c.startKey&&o.dateKey<=c.endKey);
+    const meta=state.billingCycles[cid]||{};
+    const kasif=totalOf(os.filter(o=>o.member==="Kaşif"));
+    const ayse=totalOf(os.filter(o=>o.member==="Ayşe Merve"));
+    const cafe=meta.cafeAmount;
+    const diff=cafe===undefined||cafe===null?null:Number(cafe)-totalOf(os);
+    return `<div class="card archive-cycle">
+      <div class="archive-cycle-head">
+        <div><span>Hesap Dönemi</span><strong>${cycleLabel(c)}</strong></div>
+        <em class="${meta.paid?"paid":"open"}">${meta.paid?"✓ ÖDENDİ":"AÇIK"}</em>
+      </div>
+      <div class="archive-cycle-stats">
+        <div><span>Toplam</span><strong>${money(totalOf(os))}</strong></div>
+        <div><span>Sipariş</span><strong>${os.length}</strong></div>
+        <div><span>Kaşif</span><strong>${money(kasif)}</strong></div>
+        <div><span>Ayşe Merve</span><strong>${money(ayse)}</strong></div>
+        <div><span>Kafe Hesabı</span><strong>${cafe===undefined?"—":money(cafe)}</strong></div>
+        <div><span>Fark</span><strong>${diff===null?"—":money(diff)}</strong></div>
+      </div>
+      <div class="archive-actions">
+        <button class="secondary-btn" data-print-cycle="${cid}">PDF Özeti</button>
+      </div>
+    </div>`;
+  }).join("");
+
+  document.querySelectorAll("[data-print-cycle]").forEach(btn=>btn.addEventListener("click",()=>{
+    const [s,e]=btn.dataset.printCycle.split("__");
+    printCycleSummary({startKey:s,endKey:e,start:new Date(s+"T12:00:00"),end:new Date(e+"T12:00:00")});
   }));
 }
 
@@ -695,7 +848,7 @@ function renderPriceHistory() {
 }
 
 function renderAll() {
-  renderCategoryTabs(); renderProducts(); renderToday(); renderHistory(); renderReports(); renderSettings(); renderPinnedFavorites(); renderFavoritePicker(); renderTrash();
+  renderCategoryTabs(); renderProducts(); renderToday(); renderHistory(); renderReports(); renderArchive(); renderSettings(); renderPinnedFavorites(); renderFavoritePicker(); renderTrash();
 }
 
 function setupCategorySelects() {
@@ -738,7 +891,8 @@ function backupJson(){
   const data={
     app:"Emirgan Cafe & Nargile", version:APP_VERSION, exportedAt:new Date().toISOString(),
     products:state.products, orders:state.orders.map(o=>({...o,createdAt:undefined})),
-    priceHistory:state.priceHistory.map(h=>({...h,changedAt:undefined})), days:state.dayStatus
+    priceHistory:state.priceHistory.map(h=>({...h,changedAt:undefined})), days:state.dayStatus,
+    billingCycles:state.billingCycles
   };
   downloadTextFile(`emirgan-yedek-${localDateKey()}.json`,JSON.stringify(data,null,2),"application/json;charset=utf-8");
   toast("JSON yedeği indirildi.");
@@ -762,6 +916,94 @@ async function deleteOrdersForDate(dateKey){
   if(!orders.length) return toast("Bu tarihte silinecek kayıt yok.");
   for(const o of orders) await moveOrderToTrash(o.id);
   if(state.dayStatus[dateKey]) await deleteDoc(doc(db,"days",dateKey));
+}
+
+
+function printCycleSummary(c=getBillingCycle()){
+  const os=state.orders.filter(o=>o.dateKey>=c.startKey&&o.dateKey<=c.endKey);
+  const meta=state.billingCycles[cycleId(c)]||{};
+  const grouped=new Map();
+  os.forEach(o=>{
+    const cur=grouped.get(o.productName)||{count:0,total:0};
+    cur.count++; cur.total+=Number(o.unitPrice)||0; grouped.set(o.productName,cur);
+  });
+  const rows=[...grouped.entries()].sort((a,b)=>b[1].count-a[1].count);
+  const w=window.open("","_blank");
+  if(!w) return alert("PDF özeti için açılır pencereye izin verin.");
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>Emirgan ${cycleLabel(c)}</title>
+  <style>body{font-family:Arial,sans-serif;padding:32px;color:#222}h1{margin:0}small{color:#666}table{width:100%;border-collapse:collapse;margin-top:22px}th,td{padding:9px;border-bottom:1px solid #ddd;text-align:left}.sum{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:24px 0}.box{border:1px solid #ddd;border-radius:10px;padding:12px}.box span{display:block;color:#666;font-size:12px}.box strong{display:block;margin-top:4px}@media print{button{display:none}}</style>
+  </head><body>
+  <h1>Emirgan Cafe & Nargile</h1><small>Hesap Dönemi: ${cycleLabel(c)}</small>
+  <div class="sum">
+    <div class="box"><span>Toplam</span><strong>${money(totalOf(os))}</strong></div>
+    <div class="box"><span>Sipariş</span><strong>${os.length}</strong></div>
+    <div class="box"><span>Kafe Hesabı</span><strong>${meta.cafeAmount===undefined?"—":money(meta.cafeAmount)}</strong></div>
+    <div class="box"><span>Durum</span><strong>${meta.paid?"Ödendi":"Açık"}</strong></div>
+  </div>
+  <table><thead><tr><th>Ürün</th><th>Adet</th><th>Tutar</th></tr></thead><tbody>
+  ${rows.map(([n,v])=>`<tr><td>${escapeHtml(n)}</td><td>${v.count}</td><td>${money(v.total)}</td></tr>`).join("")}
+  </tbody></table>
+  <p><button onclick="window.print()">PDF / Yazdır</button></p>
+  </body></html>`;
+  w.document.write(html); w.document.close(); w.focus(); setTimeout(()=>w.print(),350);
+}
+
+function runSystemCheck(){
+  const issues=[];
+  state.products.forEach(p=>{
+    if(!p.name?.trim()) issues.push("Adsız ürün kaydı var.");
+    if(p.price!==null&&p.price!==undefined&&(!Number.isFinite(Number(p.price))||Number(p.price)<0)) issues.push(`${p.name}: geçersiz fiyat.`);
+  });
+  state.orders.forEach(o=>{
+    if(!o.dateKey) issues.push(`${o.productName||"Sipariş"}: tarih eksik.`);
+    if(!o.member) issues.push(`${o.productName||"Sipariş"}: kişi eksik.`);
+    if(!o.productName) issues.push("Ürün adı eksik sipariş var.");
+    if(o.productId && !state.products.some(p=>p.id===o.productId)) issues.push(`${o.productName}: katalog ürünü artık bulunmuyor.`);
+  });
+  const fingerprints=new Map();
+  state.orders.forEach(o=>{
+    const fp=[o.productId,o.member,o.createdAtLocal,o.unitPrice,o.note].join("|");
+    fingerprints.set(fp,(fingerprints.get(fp)||0)+1);
+  });
+  const dup=[...fingerprints.values()].filter(n=>n>1).length;
+  if(dup) issues.push(`${dup} olası mükerrer kayıt grubu bulundu.`);
+
+  const el=$("systemCheckResult");
+  el.classList.remove("hidden");
+  el.innerHTML=issues.length
+    ? `<h3>Sistem Kontrolü</h3><p>${issues.length} uyarı bulundu:</p><ul>${issues.slice(0,30).map(x=>`<li>${escapeHtml(x)}</li>`).join("")}</ul>`
+    : `<h3>Sistem Kontrolü</h3><p class="system-ok">✓ Belirgin veri bütünlüğü sorunu bulunmadı.</p>`;
+}
+
+async function restoreBackupFile(file){
+  const text=await file.text();
+  let data;
+  try{data=JSON.parse(text);}catch{return alert("Geçerli bir JSON yedek dosyası değil.");}
+  if(!data||!Array.isArray(data.products)||!Array.isArray(data.orders)) return alert("Bu dosya Emirgan yedeği olarak tanınmadı.");
+  if(!confirm(`Yedekte ${data.products.length} ürün ve ${data.orders.length} sipariş var. Mevcut verilerin üzerine eklenerek/aynı kimliklerde güncellenerek geri yüklensin mi?`)) return;
+
+  for(const p of data.products){
+    if(!p.id) continue;
+    const {id,...payload}=p;
+    await setDoc(doc(db,"products",id),{...payload,createdAt:serverTimestamp()},{merge:true});
+  }
+  for(const o of data.orders){
+    if(!o.id) continue;
+    const {id,...payload}=o;
+    await setDoc(doc(db,"orders",id),{...payload,createdAt:serverTimestamp()},{merge:true});
+  }
+  for(const h of (data.priceHistory||[])){
+    if(!h.id) continue;
+    const {id,...payload}=h;
+    await setDoc(doc(db,"priceHistory",id),{...payload,changedAt:serverTimestamp()},{merge:true});
+  }
+  if(data.days){
+    for(const [id,payload] of Object.entries(data.days)) await setDoc(doc(db,"days",id),payload,{merge:true});
+  }
+  if(data.billingCycles){
+    for(const [id,payload] of Object.entries(data.billingCycles)) await setDoc(doc(db,"billingCycles",id),payload,{merge:true});
+  }
+  toast("Yedek geri yükleme tamamlandı.");
 }
 
 function applyTheme() {
@@ -801,6 +1043,7 @@ document.querySelectorAll(".nav-btn").forEach(btn=>btn.addEventListener("click",
   if(btn.dataset.panel==="favoritesPanel")renderPinnedFavorites();
   if(btn.dataset.panel==="historyPanel")renderHistory();
   if(btn.dataset.panel==="reportsPanel")renderReports();
+  if(btn.dataset.panel==="archivePanel")renderArchive();
   if(btn.dataset.panel==="settingsPanel")renderSettings();
 }));
 
@@ -902,6 +1145,38 @@ $("manageFavoritesButton").addEventListener("click",()=>{
 $("closeFavoritePicker").addEventListener("click",()=>$("favoritePicker").classList.add("hidden"));
 $("favoritePickerSearch").addEventListener("input",renderFavoritePicker);
 
+
+$("saveReconciliationButton").addEventListener("click",async()=>{
+  const c=getBillingCycle(), cid=cycleId(c);
+  const raw=$("cafeStatementAmount").value.trim();
+  const amount=raw===""?null:Number(raw);
+  if(amount!==null&&(!Number.isFinite(amount)||amount<0)) return alert("Geçerli bir tutar girin.");
+  await setDoc(doc(db,"billingCycles",cid),{
+    startKey:c.startKey,endKey:c.endKey,cafeAmount:amount,
+    updatedBy:state.activeMember,updatedAt:serverTimestamp()
+  },{merge:true});
+  toast("Mutabakat kaydedildi.");
+});
+
+$("markCyclePaidButton").addEventListener("click",async()=>{
+  const c=getBillingCycle(), cid=cycleId(c), meta=state.billingCycles[cid]||{};
+  const next=!meta.paid;
+  if(next && !confirm(`${cycleLabel(c)} dönemi ödendi olarak işaretlensin mi?`)) return;
+  await setDoc(doc(db,"billingCycles",cid),{
+    startKey:c.startKey,endKey:c.endKey,paid:next,
+    paidAt:next?serverTimestamp():null,paidBy:next?state.activeMember:null
+  },{merge:true});
+  toast(next?"Dönem ödendi olarak arşivlendi.":"Ödendi işareti kaldırıldı.");
+});
+
+$("printCyclePdfButton").addEventListener("click",()=>printCycleSummary(getBillingCycle()));
+$("systemCheckButton").addEventListener("click",runSystemCheck);
+$("restoreBackupInput").addEventListener("change",async e=>{
+  const file=e.target.files?.[0]; if(!file)return;
+  try{await restoreBackupFile(file);}catch(err){console.error(err);alert("Yedek geri yüklenirken hata oluştu.");}
+  e.target.value="";
+});
+
 $("emptyTrashButton").addEventListener("click",async()=>{
   if(!state.trash.length) return toast("Çöp kutusu zaten boş.");
   if(!confirm(`Çöp kutusundaki ${state.trash.length} kayıt kalıcı olarak silinsin mi?`)) return;
@@ -911,7 +1186,7 @@ $("emptyTrashButton").addEventListener("click",async()=>{
 
 onAuthStateChanged(auth,async user=>{
   if(!user){
-    [state.unsubProducts,state.unsubOrders,state.unsubPriceHistory,state.unsubDayStatus,state.unsubTrash].forEach(fn=>fn&&fn());
+    [state.unsubProducts,state.unsubOrders,state.unsubPriceHistory,state.unsubDayStatus,state.unsubTrash,state.unsubBillingCycles].forEach(fn=>fn&&fn());
     showView("login"); return;
   }
   try{

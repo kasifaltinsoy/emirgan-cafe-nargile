@@ -521,3 +521,78 @@ body[data-theme="dark"] .favorite-picker-item.selected { background:#304034; }
 @media(max-width:640px){
   .favorite-picker-list { grid-template-columns:1fr; }
 }
+
+
+/* ===== V11 arşiv / dönem / mutabakat / yedek ===== */
+.quick-recent-section { margin-bottom:14px; }
+.quick-recent-strip { display:flex; gap:8px; overflow-x:auto; }
+.quick-recent-item {
+  min-width:145px; border:1px solid var(--line); background:#fff; color:var(--text);
+  border-radius:15px; padding:10px 11px; text-align:left;
+}
+.quick-recent-item strong,.quick-recent-item span,.quick-recent-item em { display:block; }
+.quick-recent-item span { color:var(--muted); font-size:10px; margin-top:2px; }
+.quick-recent-item em { color:var(--primary); font-size:10px; font-style:normal; font-weight:800; margin-top:5px; }
+.quick-empty { min-width:100%; }
+
+.product-card.just-added { animation:addedPulse .65s ease; }
+@keyframes addedPulse { 0%{transform:scale(1)} 40%{transform:scale(1.025);box-shadow:0 0 0 4px rgba(111,135,116,.16)} 100%{transform:scale(1)} }
+
+.reconciliation-card { padding:16px; margin-bottom:14px; }
+.reconciliation-controls { display:grid; grid-template-columns:1fr auto auto; gap:10px; align-items:end; }
+.reconciliation-controls label { margin:0; }
+.reconciliation-controls .primary-btn { width:auto; }
+.reconciliation-result {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:12px;
+}
+.reconciliation-result div { background:#faf9f5; border-radius:13px; padding:10px; border:1px solid var(--line); }
+.reconciliation-result span { display:block; color:var(--muted); font-size:10px; }
+.reconciliation-result strong { display:block; margin-top:4px; }
+.reconciliation-result strong.ok { color:#52785a; }
+.reconciliation-result strong.warn { color:#9b5c48; }
+.cycle-paid { background:#dfeee2 !important; color:#4e6d55 !important; }
+
+.archive-current { padding:16px; margin-bottom:14px; display:grid; grid-template-columns:1fr auto; gap:4px 12px; }
+.archive-current span { color:var(--muted); font-size:11px; }
+.archive-current em { font-style:normal; color:var(--muted); }
+.archive-current b { grid-row:1 / span 3; grid-column:2; align-self:center; }
+.archive-cycle-list { display:grid; gap:12px; }
+.archive-cycle { padding:16px; }
+.archive-cycle-head { display:flex; justify-content:space-between; gap:12px; align-items:center; }
+.archive-cycle-head span { display:block; color:var(--muted); font-size:10px; }
+.archive-cycle-head strong { display:block; margin-top:2px; }
+.archive-cycle-head em { font-style:normal; font-size:11px; font-weight:900; padding:6px 9px; border-radius:999px; }
+.archive-cycle-head em.paid { background:#e3efe5; color:#52705a; }
+.archive-cycle-head em.open { background:#f5eadf; color:#8b624d; }
+.archive-cycle-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:12px; }
+.archive-cycle-stats div { padding:9px; border-radius:12px; background:#faf9f5; }
+.archive-cycle-stats span { display:block; color:var(--muted); font-size:10px; }
+.archive-cycle-stats strong { display:block; margin-top:3px; font-size:12px; }
+.archive-actions { display:flex; justify-content:flex-end; margin-top:10px; }
+
+.favorite-draggable.dragging { opacity:.45; }
+.favorite-order-controls { display:flex; gap:6px; }
+.favorite-order-controls button {
+  width:34px;height:30px;border:0;border-radius:9px;background:#eef2ed;color:#526b57;font-weight:900;
+}
+.favorite-order-controls button:disabled { opacity:.3; }
+
+.file-button { display:inline-flex; align-items:center; justify-content:center; cursor:pointer; }
+.system-ok { color:#52785a; font-weight:800; }
+
+.bottom-nav { grid-template-columns:repeat(6,1fr); }
+
+body[data-theme="dark"] .quick-recent-item,
+body[data-theme="dark"] .reconciliation-result div,
+body[data-theme="dark"] .archive-cycle-stats div { background:#282d29; }
+body[data-theme="dark"] .favorite-order-controls button { background:#303a32; color:#dce8de; }
+
+@media(max-width:640px){
+  .reconciliation-controls { grid-template-columns:1fr; }
+  .reconciliation-controls .primary-btn { width:100%; }
+  .reconciliation-result { grid-template-columns:1fr 1fr; }
+  .archive-cycle-stats { grid-template-columns:1fr 1fr; }
+  .bottom-nav { width:calc(100% - 8px); padding:6px; gap:1px; }
+  .nav-btn { font-size:9px; padding:7px 1px; }
+  .nav-btn span { font-size:16px; }
+}
