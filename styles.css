@@ -362,3 +362,72 @@ body[data-theme="dark"] .delete-product-btn {
   padding: 10px 12px;
   white-space: nowrap;
 }
+
+
+/* ===== V7 gelişmiş yönetim ===== */
+.update-banner {
+  position: fixed; z-index: 200; top: 10px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 14px; border-radius: 16px; background: #2f372f; color: #fff;
+  box-shadow: var(--shadow);
+}
+.update-banner button {
+  border: 0; border-radius: 10px; padding: 7px 10px; font-weight: 800;
+  background: #edf4ee; color: #4f6754;
+}
+
+.day-end-summary {
+  margin-bottom: 14px; padding: 14px 16px;
+  display: grid; gap: 4px;
+}
+.day-end-title { color: var(--muted); font-size: 12px; font-weight: 750; }
+.day-end-summary span { color: var(--muted); font-size: 12px; }
+
+.history-actions { display:flex; justify-content:flex-end; margin: 10px 0; }
+.history-month-card { margin-top:14px; padding:16px; }
+.day-status-list { display:grid; gap:7px; margin-top:10px; }
+.day-status-item {
+  border:1px solid var(--line); background:#faf9f5; color:var(--text);
+  border-radius:13px; padding:10px 12px;
+  display:grid; grid-template-columns:1fr auto auto; gap:10px; align-items:center; text-align:left;
+}
+.day-status-item em { font-style:normal; font-size:11px; font-weight:800; padding:5px 8px; border-radius:999px; }
+.day-status-item em.paid { background:#e4f0e6; color:#52705a; }
+.day-status-item em.unpaid { background:#f6e9df; color:#8a604c; }
+
+.range-card,.export-card { padding:16px; margin-bottom:14px; }
+.range-controls { display:grid; grid-template-columns:1fr 1fr auto; gap:10px; align-items:end; }
+.range-controls label { margin:0; }
+.range-result { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-top:12px; }
+.range-result div { padding:12px; border-radius:14px; background:#faf9f5; }
+.range-result span { display:block; color:var(--muted); font-size:11px; }
+.range-result strong { display:block; margin-top:4px; }
+
+.favorite-pin-btn {
+  border:0; border-radius:10px; padding:9px 10px; font-weight:800;
+  background:#f4f0e7; color:#75684d;
+}
+.favorite-pin-btn.on { background:#fff0bd; color:#7c641c; }
+
+.modal { position:fixed; inset:0; z-index:300; display:grid; place-items:center; padding:18px; }
+.modal-backdrop { position:absolute; inset:0; background:rgba(0,0,0,.45); }
+.modal-card {
+  position:relative; z-index:1; width:min(460px,100%); padding:20px;
+  border-radius:22px; background:var(--surface); border:1px solid var(--line); box-shadow:var(--shadow);
+}
+.repeat-btn { background:#eaf1eb; color:#52705a; }
+.version-row { display:flex; justify-content:space-between; align-items:center; }
+.version-row span { color:var(--muted); }
+
+body[data-theme="dark"] .day-status-item,
+body[data-theme="dark"] .range-result div { background:#282d29; }
+body[data-theme="dark"] .favorite-pin-btn { background:#3b382c; color:#e8d68f; }
+body[data-theme="dark"] .favorite-pin-btn.on { background:#554a24; color:#ffe58d; }
+
+@media (max-width:640px){
+  .range-controls { grid-template-columns:1fr 1fr; }
+  .range-controls button { grid-column:1 / -1; }
+  .range-result { grid-template-columns:1fr; }
+  .day-status-item { grid-template-columns:1fr auto; }
+  .day-status-item em { grid-column:1 / -1; justify-self:start; }
+}

@@ -41,3 +41,19 @@ Kategori ikonları, otomatik sık siparişler, kişi bazlı günlük özet, hesa
 
 ## V6
 Fiyat Geçmişi bölümüne 'Geçmişi Sıfırla' butonu eklendi. Bu işlem yalnızca fiyat geçmişi kayıtlarını siler; mevcut ürün fiyatlarını ve geçmiş siparişleri etkilemez.
+
+
+## V7
+- Sipariş düzenleme
+- Gün sonu özeti
+- Ödenen/açık gün listesi
+- Aylık açık bakiye
+- Tarih aralığı raporu
+- CSV/Excel dışa aktarım
+- JSON veri yedeği
+- Hızlı tekrar
+- Sabit favoriler
+- Yeni sürüm bildirimi
+- Bugün/seçilen gün kayıtlarını sıfırlama
+- Tek dokunuşla Kaşif/Ayşe Merve geçişi
+- Uygulama içi sürüm numarası

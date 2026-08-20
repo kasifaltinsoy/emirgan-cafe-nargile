@@ -26,6 +26,8 @@ import {
   updateDoc
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
+const APP_VERSION = "v7";
+
 const CATEGORIES = [
   { id: "icecekler", label: "İçecekler", icon: "☕", color: "#e5f2f5" },
   { id: "atistirmaliklar", label: "Atıştırmalıklar", icon: "🍟", color: "#f6eddc" },
@@ -234,12 +236,20 @@ async function addOrder(productId,note="") {
 function renderFavorites() {
   const counts = new Map();
   state.orders.forEach(o => counts.set(o.productId,(counts.get(o.productId)||0)+1));
-  const favorites = state.products.filter(p => p.active!==false).sort((a,b)=>(counts.get(b.id)||0)-(counts.get(a.id)||0)).slice(0,6);
-  $("favoritesSection").classList.toggle("hidden", favorites.every(p => (counts.get(p.id)||0)===0));
-  $("favoriteProducts").innerHTML = favorites.filter(p => (counts.get(p.id)||0)>0).map(p => {
+  const active = state.products.filter(p => p.active!==false);
+  const favorites = [...active].sort((a,b)=>{
+    const pinDiff = Number(!!b.favoritePinned) - Number(!!a.favoritePinned);
+    if (pinDiff) return pinDiff;
+    return (counts.get(b.id)||0) - (counts.get(a.id)||0);
+  }).slice(0,6);
+
+  const visible = favorites.filter(p => p.favoritePinned || (counts.get(p.id)||0)>0);
+  $("favoritesSection").classList.toggle("hidden", visible.length===0);
+  $("favoriteProducts").innerHTML = visible.map(p => {
     const cat = categoryById(p.category);
     return `<button class="favorite-btn" data-favorite="${p.id}" style="--fav-bg:${cat.color}">
-      <span>${cat.icon}</span><strong>${escapeHtml(p.name)}</strong><small>${counts.get(p.id)||0} kez</small>
+      <span>${p.favoritePinned ? "★" : cat.icon}</span><strong>${escapeHtml(p.name)}</strong>
+      <small>${p.favoritePinned ? "Sabit favori" : `${counts.get(p.id)||0} kez`}</small>
     </button>`;
   }).join("");
   document.querySelectorAll("[data-favorite]").forEach(btn => btn.addEventListener("click",()=>addOrder(btn.dataset.favorite)));
@@ -255,6 +265,14 @@ function renderToday() {
     const arr = today.filter(o=>o.member===person);
     return `<div class="person-card"><span>${person}</span><strong>${arr.length} ürün</strong><em>${money(totalOf(arr))}</em></div>`;
   }).join("");
+
+  const kasifOrders = today.filter(o=>o.member==="Kaşif");
+  const ayseOrders = today.filter(o=>o.member==="Ayşe Merve");
+  $("dayEndSummary").innerHTML = `
+    <div class="day-end-title">Gün Sonu Özeti</div>
+    <strong>Bugün toplam ${today.length} ürün • ${money(totalOf(today))}</strong>
+    <span>Kaşif: ${money(totalOf(kasifOrders))} • Ayşe Merve: ${money(totalOf(ayseOrders))}</span>
+  `;
 
   const paid = !!state.dayStatus[localDateKey()]?.paid;
   const btn = $("closeDayButton");
@@ -275,6 +293,8 @@ function orderRowHtml(o,allowEditPrice=false) {
       <span>${escapeHtml(o.member)} • ${escapeHtml(categoryById(o.category).label)}${o.note ? ` • 📝 ${escapeHtml(o.note)}` : ""}</span>
     </div>
     <div class="order-price">${money(o.unitPrice)}
+      <button class="icon-btn repeat-btn" data-repeat-order="${o.id}" title="Siparişi tekrarla">↻</button>
+      <button class="icon-btn" data-edit-order="${o.id}" title="Siparişi düzenle">✎</button>
       ${allowEditPrice?`<button class="icon-btn" data-edit-price="${o.id}" title="Fiyatı düzenle">₺</button>`:""}
       <button class="icon-btn" data-delete-order="${o.id}" title="Siparişi sil">×</button>
     </div>
@@ -294,6 +314,43 @@ function bindDeleteButtons(root) {
     if (normalized!==null && (!Number.isFinite(normalized)||normalized<0)) return alert("Geçerli bir fiyat girin.");
     await updateDoc(doc(db,"orders",btn.dataset.editPrice),{unitPrice:normalized}); toast("Sipariş fiyatı güncellendi");
   }));
+  root.querySelectorAll("[data-repeat-order]").forEach(btn => btn.addEventListener("click",async()=>{
+    const o=state.orders.find(x=>x.id===btn.dataset.repeatOrder);
+    if(!o) return;
+    const product=state.products.find(p=>p.id===o.productId);
+    if(product) await addOrder(product.id,o.note||"");
+    else {
+      const now=new Date();
+      await addDoc(collection(db,"orders"),{
+        productId:o.productId||"", productName:o.productName, category:o.category, member:state.activeMember,
+        unitPrice:o.unitPrice??null, note:o.note||"", dateKey:localDateKey(now), monthKey:localMonthKey(now),
+        createdAtLocal:now.toISOString(), createdAt:serverTimestamp()
+      });
+      toast(`${o.productName} tekrarlandı`);
+    }
+  }));
+
+  root.querySelectorAll("[data-edit-order]").forEach(btn => btn.addEventListener("click",()=>{
+    openEditOrder(btn.dataset.editOrder);
+  }));
+}
+
+
+function openEditOrder(orderId){
+  const o=state.orders.find(x=>x.id===orderId);
+  if(!o) return;
+  $("editOrderId").value=o.id;
+  $("editOrderMember").value=o.member||"Kaşif";
+  $("editOrderProduct").innerHTML=sortTr(state.products.filter(p=>p.active!==false)).map(p=>
+    `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join("");
+  $("editOrderProduct").value=o.productId||"";
+  $("editOrderPrice").value=o.unitPrice??"";
+  $("editOrderNote").value=o.note||"";
+  $("editOrderModal").classList.remove("hidden");
+}
+
+function closeEditOrder(){
+  $("editOrderModal").classList.add("hidden");
 }
 
 function renderHistory() {
@@ -307,6 +364,21 @@ function renderHistory() {
     <div><span>Durum</span><strong>${paid?"✓ Ödendi":`${known}/${orders.length} fiyatlı`}</strong></div>`;
   $("historyOrders").innerHTML = orders.length ? orders.map(o=>orderRowHtml(o,true)).join("") : `<div class="empty">Bu tarihte kayıt bulunmuyor.</div>`;
   bindDeleteButtons($("historyOrders"));
+
+  const month=key.slice(0,7);
+  const monthDays=[...new Set(state.orders.filter(o=>o.monthKey===month).map(o=>o.dateKey))].sort().reverse();
+  $("historyDayStatusList").innerHTML = monthDays.length ? monthDays.map(day=>{
+    const dayOrders=state.orders.filter(o=>o.dateKey===day);
+    const isPaid=!!state.dayStatus[day]?.paid;
+    return `<button class="day-status-item" data-history-day="${day}">
+      <span>${new Date(day+"T12:00:00").toLocaleDateString("tr-TR")}</span>
+      <strong>${money(totalOf(dayOrders))}</strong>
+      <em class="${isPaid?"paid":"unpaid"}">${isPaid?"✓ Ödendi":"Açık"}</em>
+    </button>`;
+  }).join("") : `<div class="empty">Bu ayda kayıt yok.</div>`;
+  document.querySelectorAll("[data-history-day]").forEach(btn=>btn.addEventListener("click",()=>{
+    $("historyDate").value=btn.dataset.historyDay; renderHistory();
+  }));
 }
 
 function renderReports() {
@@ -315,9 +387,13 @@ function renderReports() {
   if (state.reportPerson!=="Tümü") orders=orders.filter(o=>o.member===state.reportPerson);
   const days = new Set(orders.map(o=>o.dateKey)).size, total=totalOf(orders), avg=days?total/days:0;
 
+  const unpaidOrders = orders.filter(o => !state.dayStatus[o.dateKey]?.paid);
+  const unpaidTotal = totalOf(unpaidOrders);
+
   $("reportCards").innerHTML = `
     <div class="card report-card"><span>Toplam Sipariş</span><strong>${orders.length}</strong></div>
     <div class="card report-card"><span>Toplam Hesap</span><strong>${money(total)}</strong></div>
+    <div class="card report-card"><span>Açık Bakiye</span><strong>${money(unpaidTotal)}</strong></div>
     <div class="card report-card"><span>Aktif Gün Ortalaması</span><strong>${money(avg)}</strong></div>`;
 
   const grouped = new Map();
@@ -372,6 +448,7 @@ function renderSettings() {
       </div>
       <input class="mini-input" data-product-price="${p.id}" type="number" min="0" step="0.01" value="${p.price??""}" placeholder="Fiyat" />
       <div class="product-admin-actions">
+        <button class="favorite-pin-btn ${p.favoritePinned?"on":""}" data-pin-product="${p.id}">${p.favoritePinned?"★ Favori":"☆ Favori"}</button>
         <button class="toggle-btn ${p.active===false?"off":""}" data-toggle-product="${p.id}">${p.active===false?"Pasif":"Aktif"}</button>
         <button class="delete-product-btn" data-delete-product="${p.id}">Sil</button>
       </div>
@@ -401,6 +478,12 @@ function renderSettings() {
     if(newName===product?.name) return;
     await updateDoc(doc(db,"products",input.dataset.productName),{name:newName});
     toast("Ürün adı güncellendi. Geçmiş siparişler değişmedi.");
+  }));
+
+  document.querySelectorAll("[data-pin-product]").forEach(btn=>btn.addEventListener("click",async()=>{
+    const p=state.products.find(x=>x.id===btn.dataset.pinProduct);
+    await updateDoc(doc(db,"products",p.id),{favoritePinned:!p.favoritePinned});
+    toast(!p.favoritePinned ? "Favorilere sabitlendi" : "Favori sabitlemesi kaldırıldı");
   }));
 
   document.querySelectorAll("[data-toggle-product]").forEach(btn=>btn.addEventListener("click",async()=>{
@@ -441,6 +524,67 @@ function setupCategorySelects() {
   $("newProductCategory").innerHTML=options; $("settingsCategoryFilter").innerHTML=options; $("settingsCategoryFilter").value=state.activeCategory;
 }
 
+
+function downloadTextFile(filename, content, mime="text/plain;charset=utf-8"){
+  const blob=new Blob([content],{type:mime});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url; a.download=filename; document.body.appendChild(a); a.click();
+  a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+function csvCell(value){
+  const s=String(value??"").replace(/"/g,'""');
+  return `"${s}"`;
+}
+
+function exportCsv(){
+  const month=$("reportMonth").value||localMonthKey();
+  let orders=state.orders.filter(o=>o.monthKey===month);
+  if(state.reportPerson!=="Tümü") orders=orders.filter(o=>o.member===state.reportPerson);
+  const rows=[["Tarih","Saat","Kişi","Ürün","Kategori","Fiyat","Not","Durum"]];
+  orders.slice().sort((a,b)=>orderDate(a)-orderDate(b)).forEach(o=>{
+    const dt=orderDate(o);
+    rows.push([
+      o.dateKey, displayTime(dt), o.member, o.productName, categoryById(o.category).label,
+      o.unitPrice??"", o.note||"", state.dayStatus[o.dateKey]?.paid?"Ödendi":"Açık"
+    ]);
+  });
+  const csv="\ufeff"+rows.map(r=>r.map(csvCell).join(";")).join("\r\n");
+  downloadTextFile(`emirgan-${month}.csv`,csv,"text/csv;charset=utf-8");
+  toast("CSV dosyası hazırlandı.");
+}
+
+function backupJson(){
+  const data={
+    app:"Emirgan Cafe & Nargile", version:APP_VERSION, exportedAt:new Date().toISOString(),
+    products:state.products, orders:state.orders.map(o=>({...o,createdAt:undefined})),
+    priceHistory:state.priceHistory.map(h=>({...h,changedAt:undefined})), days:state.dayStatus
+  };
+  downloadTextFile(`emirgan-yedek-${localDateKey()}.json`,JSON.stringify(data,null,2),"application/json;charset=utf-8");
+  toast("JSON yedeği indirildi.");
+}
+
+function runRangeReport(){
+  const start=$("rangeStart").value, end=$("rangeEnd").value;
+  if(!start||!end) return alert("Başlangıç ve bitiş tarihini seçin.");
+  if(start>end) return alert("Başlangıç tarihi bitiş tarihinden sonra olamaz.");
+  let orders=state.orders.filter(o=>o.dateKey>=start&&o.dateKey<=end);
+  if(state.reportPerson!=="Tümü") orders=orders.filter(o=>o.member===state.reportPerson);
+  const unpaid=orders.filter(o=>!state.dayStatus[o.dateKey]?.paid);
+  $("rangeReportResult").innerHTML=`
+    <div><span>Sipariş</span><strong>${orders.length}</strong></div>
+    <div><span>Toplam</span><strong>${money(totalOf(orders))}</strong></div>
+    <div><span>Açık Bakiye</span><strong>${money(totalOf(unpaid))}</strong></div>`;
+}
+
+async function deleteOrdersForDate(dateKey){
+  const orders=state.orders.filter(o=>o.dateKey===dateKey);
+  if(!orders.length) return toast("Bu tarihte silinecek kayıt yok.");
+  await Promise.all(orders.map(o=>deleteDoc(doc(db,"orders",o.id))));
+  if(state.dayStatus[dateKey]) await deleteDoc(doc(db,"days",dateKey));
+}
+
 function applyTheme() {
   const dark=localStorage.getItem("emirganTheme")==="dark";
   document.body.dataset.theme=dark?"dark":"light";
@@ -461,7 +605,13 @@ document.querySelectorAll(".member-btn").forEach(btn=>btn.addEventListener("clic
   $("activeMemberButton").textContent=state.activeMember; showView("main"); renderAll();
 }));
 
-$("activeMemberButton").addEventListener("click",()=>showView("member"));
+$("activeMemberButton").addEventListener("click",()=>{
+  state.activeMember = state.activeMember==="Kaşif" ? "Ayşe Merve" : "Kaşif";
+  localStorage.setItem("emirganActiveMember",state.activeMember);
+  $("activeMemberButton").textContent=state.activeMember;
+  toast(`Aktif kullanıcı: ${state.activeMember}`);
+  renderAll();
+});
 $("changeMemberButton").addEventListener("click",()=>showView("member"));
 $("logoutButton").addEventListener("click",async()=>{await signOut(auth);state.activeMember="";localStorage.removeItem("emirganActiveMember");});
 $("logoutFromMember").addEventListener("click",async()=>{await signOut(auth);state.activeMember="";localStorage.removeItem("emirganActiveMember");});
@@ -530,6 +680,50 @@ $("clearPriceHistoryButton").addEventListener("click", async ()=>{
   }
 });
 
+
+$("editOrderForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const id=$("editOrderId").value;
+  const old=state.orders.find(o=>o.id===id);
+  const product=state.products.find(p=>p.id===$("editOrderProduct").value);
+  if(!old||!product) return;
+  const raw=$("editOrderPrice").value.trim();
+  const price=raw===""?null:Number(raw);
+  if(price!==null&&(!Number.isFinite(price)||price<0)) return alert("Geçerli bir fiyat girin.");
+  await updateDoc(doc(db,"orders",id),{
+    member:$("editOrderMember").value,
+    productId:product.id,
+    productName:product.name,
+    category:product.category,
+    unitPrice:price,
+    note:$("editOrderNote").value.trim()
+  });
+  closeEditOrder(); toast("Sipariş güncellendi.");
+});
+$("closeEditOrderModal").addEventListener("click",closeEditOrder);
+document.querySelectorAll("[data-close-modal]").forEach(el=>el.addEventListener("click",closeEditOrder));
+
+$("runRangeReportButton").addEventListener("click",runRangeReport);
+$("exportCsvButton").addEventListener("click",exportCsv);
+$("backupJsonButton").addEventListener("click",backupJson);
+$("backupJsonButtonSettings").addEventListener("click",backupJson);
+
+$("deleteTodayButton").addEventListener("click",async()=>{
+  const key=localDateKey();
+  const count=state.orders.filter(o=>o.dateKey===key).length;
+  if(!count) return toast("Bugün silinecek kayıt yok.");
+  if(!confirm(`Bugüne ait ${count} sipariş kaydı tamamen silinsin mi?`)) return;
+  await deleteOrdersForDate(key); toast("Bugünkü kayıtlar sıfırlandı.");
+});
+
+$("deleteSelectedDayButton").addEventListener("click",async()=>{
+  const key=$("historyDate").value;
+  const count=state.orders.filter(o=>o.dateKey===key).length;
+  if(!count) return toast("Seçilen günde silinecek kayıt yok.");
+  if(!confirm(`${key} tarihine ait ${count} sipariş kaydı tamamen silinsin mi?`)) return;
+  await deleteOrdersForDate(key); toast("Seçilen gün sıfırlandı.");
+});
+
 onAuthStateChanged(auth,async user=>{
   if(!user){
     [state.unsubProducts,state.unsubOrders,state.unsubPriceHistory,state.unsubDayStatus].forEach(fn=>fn&&fn());
@@ -543,7 +737,29 @@ onAuthStateChanged(auth,async user=>{
 });
 
 setupCategorySelects(); setTodayLabel(); applyTheme();
+if($("appVersionLabel")) $("appVersionLabel").textContent=`Emirgan ${APP_VERSION}`;
 
 if("serviceWorker"in navigator){
-  window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(console.error));
+  window.addEventListener("load",async()=>{
+    try{
+      const reg=await navigator.serviceWorker.register("./sw.js");
+      const showUpdate=()=>{
+        $("updateBanner").classList.remove("hidden");
+        $("applyUpdateButton").onclick=()=>{
+          if(reg.waiting) reg.waiting.postMessage({type:"SKIP_WAITING"});
+          else location.reload();
+        };
+      };
+      if(reg.waiting) showUpdate();
+      reg.addEventListener("updatefound",()=>{
+        const worker=reg.installing;
+        if(!worker) return;
+        worker.addEventListener("statechange",()=>{
+          if(worker.state==="installed" && navigator.serviceWorker.controller) showUpdate();
+        });
+      });
+      navigator.serviceWorker.addEventListener("controllerchange",()=>location.reload());
+      reg.update().catch(()=>{});
+    }catch(err){ console.error(err); }
+  });
 }

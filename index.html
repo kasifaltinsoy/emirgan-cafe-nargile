@@ -11,6 +11,10 @@
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
+  <div id="updateBanner" class="update-banner hidden">
+    <span>Yeni sürüm hazır.</span>
+    <button id="applyUpdateButton">Güncelle</button>
+  </div>
   <div id="app">
     <section id="loginView" class="screen auth-screen">
       <div class="brand-card">
@@ -82,6 +86,7 @@
           </div>
 
           <div id="personTodaySummary" class="person-summary"></div>
+          <div id="dayEndSummary" class="day-end-summary card"></div>
 
           <div class="search-wrap">
             <input id="productSearch" type="search" placeholder="Ürün ara…" autocomplete="off" />
@@ -115,7 +120,14 @@
             <input id="historyDate" type="date" />
           </div>
           <div id="historySummary" class="summary-strip compact"></div>
+          <div class="history-actions">
+            <button id="deleteSelectedDayButton" class="danger-btn">Seçilen Günü Sıfırla</button>
+          </div>
           <div id="historyOrders" class="order-list card"></div>
+          <div class="card history-month-card">
+            <h3>Bu Ayın Günleri</h3>
+            <div id="historyDayStatusList" class="day-status-list"></div>
+          </div>
         </section>
 
         <section id="reportsPanel" class="panel">
@@ -132,6 +144,29 @@
             <button class="filter-chip" data-report-person="Ayşe Merve">Ayşe Merve</button>
           </div>
           <div id="reportCards" class="report-cards"></div>
+
+          <div class="card range-card">
+            <div class="section-heading compact-heading">
+              <div>
+                <h3>Tarih Aralığı Raporu</h3>
+                <p>Başlangıç ve bitiş tarihine göre toplamı hesaplayın.</p>
+              </div>
+            </div>
+            <div class="range-controls">
+              <label>Başlangıç<input id="rangeStart" type="date" /></label>
+              <label>Bitiş<input id="rangeEnd" type="date" /></label>
+              <button id="runRangeReportButton" class="secondary-btn">Hesapla</button>
+            </div>
+            <div id="rangeReportResult" class="range-result"></div>
+          </div>
+
+          <div class="card export-card">
+            <h3>Dışa Aktar</h3>
+            <div class="settings-actions">
+              <button id="exportCsvButton" class="secondary-btn">CSV / Excel İndir</button>
+              <button id="backupJsonButton" class="secondary-btn">JSON Yedek Al</button>
+            </div>
+          </div>
 
           <div class="card chart-card">
             <div class="section-heading compact-heading">
@@ -205,6 +240,23 @@
           </div>
 
           <div class="card settings-card">
+            <h3>Veri Yönetimi</h3>
+            <p class="settings-note">Silme işlemleri geri alınamaz. Yedek almadan toplu silme yapmayın.</p>
+            <div class="settings-actions">
+              <button id="deleteTodayButton" class="danger-btn">Bugünkü Kayıtları Sıfırla</button>
+              <button id="backupJsonButtonSettings" class="secondary-btn">Yedek Al</button>
+            </div>
+          </div>
+
+          <div class="card settings-card">
+            <h3>Uygulama</h3>
+            <div class="version-row">
+              <span>Sürüm</span>
+              <strong id="appVersionLabel">Emirgan v7</strong>
+            </div>
+          </div>
+
+          <div class="card settings-card">
             <h3>Oturum</h3>
             <div class="settings-actions">
               <button id="changeMemberButton" class="secondary-btn">Kaşif / Ayşe Merve Değiştir</button>
@@ -223,6 +275,35 @@
 
       <div id="toast" class="toast hidden"></div>
     </section>
+  </div>
+
+  <div id="editOrderModal" class="modal hidden">
+    <div class="modal-backdrop" data-close-modal="1"></div>
+    <div class="modal-card">
+      <div class="section-heading">
+        <h3>Siparişi Düzenle</h3>
+        <button id="closeEditOrderModal" class="text-btn">Kapat</button>
+      </div>
+      <form id="editOrderForm">
+        <input id="editOrderId" type="hidden" />
+        <label>Kişi
+          <select id="editOrderMember">
+            <option>Kaşif</option>
+            <option>Ayşe Merve</option>
+          </select>
+        </label>
+        <label>Ürün
+          <select id="editOrderProduct"></select>
+        </label>
+        <label>Fiyat (TL)
+          <input id="editOrderPrice" type="number" min="0" step="0.01" />
+        </label>
+        <label>Not
+          <input id="editOrderNote" placeholder="İsteğe bağlı" />
+        </label>
+        <button class="primary-btn" type="submit">Değişiklikleri Kaydet</button>
+      </form>
+    </div>
   </div>
 
   <script type="module" src="./app.js"></script>

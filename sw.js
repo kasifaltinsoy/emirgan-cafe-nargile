@@ -1,4 +1,4 @@
-const CACHE = "emirgan-v6";
+const CACHE = "emirgan-v7";
 const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./firebase-config.js", "./manifest.json", "./icon.svg"];
 
 self.addEventListener("install", event => {
@@ -24,4 +24,11 @@ self.addEventListener("fetch", event => {
       })
       .catch(() => caches.match(event.request))
   );
+});
+
+
+self.addEventListener("message", event => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
 });
