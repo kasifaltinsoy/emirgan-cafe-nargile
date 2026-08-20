@@ -366,9 +366,15 @@ function renderSettings() {
   const products=sortTr(state.products.filter(p=>p.category===filter));
   $("settingsProductList").innerHTML = products.length ? products.map(p=>`
     <div class="settings-product">
-      <div><strong>${escapeHtml(p.name)}</strong><div class="meta">${escapeHtml(categoryById(p.category).label)}</div></div>
+      <div>
+        <input class="mini-input product-name-input" data-product-name="${p.id}" value="${escapeHtml(p.name)}" aria-label="Ürün adı" />
+        <div class="meta">${escapeHtml(categoryById(p.category).label)}</div>
+      </div>
       <input class="mini-input" data-product-price="${p.id}" type="number" min="0" step="0.01" value="${p.price??""}" placeholder="Fiyat" />
-      <button class="toggle-btn ${p.active===false?"off":""}" data-toggle-product="${p.id}">${p.active===false?"Pasif":"Aktif"}</button>
+      <div class="product-admin-actions">
+        <button class="toggle-btn ${p.active===false?"off":""}" data-toggle-product="${p.id}">${p.active===false?"Pasif":"Aktif"}</button>
+        <button class="delete-product-btn" data-delete-product="${p.id}">Sil</button>
+      </div>
     </div>`).join("") : `<div class="empty">Ürün bulunmuyor.</div>`;
 
   document.querySelectorAll("[data-product-price]").forEach(input=>input.addEventListener("change",async()=>{
@@ -385,10 +391,32 @@ function renderSettings() {
     toast("Yeni fiyat kaydedildi. Eski siparişler değişmedi.");
   }));
 
+  document.querySelectorAll("[data-product-name]").forEach(input=>input.addEventListener("change",async()=>{
+    const product=state.products.find(p=>p.id===input.dataset.productName);
+    const newName=input.value.trim();
+    if(!newName){
+      input.value=product?.name||"";
+      return alert("Ürün adı boş bırakılamaz.");
+    }
+    if(newName===product?.name) return;
+    await updateDoc(doc(db,"products",input.dataset.productName),{name:newName});
+    toast("Ürün adı güncellendi. Geçmiş siparişler değişmedi.");
+  }));
+
   document.querySelectorAll("[data-toggle-product]").forEach(btn=>btn.addEventListener("click",async()=>{
     const p=state.products.find(x=>x.id===btn.dataset.toggleProduct);
     await updateDoc(doc(db,"products",p.id),{active:p.active===false});
   }));
+
+  document.querySelectorAll("[data-delete-product]").forEach(btn=>btn.addEventListener("click",async()=>{
+    const p=state.products.find(x=>x.id===btn.dataset.deleteProduct);
+    if(!p) return;
+    const ok=confirm(`"${p.name}" ürününü tamamen silmek istiyor musunuz?\n\nGeçmiş sipariş kayıtları silinmeyecek.`);
+    if(!ok) return;
+    await deleteDoc(doc(db,"products",p.id));
+    toast("Ürün katalogdan silindi. Geçmiş siparişler korundu.");
+  }));
+
   renderPriceHistory();
 }
 

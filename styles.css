@@ -316,3 +316,41 @@ body[data-theme="dark"] .category-tab { filter:brightness(.72) saturate(.75); co
   .price-history-row { grid-template-columns:1fr; }
   .price-history-row > div:last-child { text-align:left; }
 }
+
+
+/* ===== V5 ürün yönetimi ===== */
+.product-name-input {
+  font-weight: 800;
+  background: #fff;
+}
+.product-admin-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.delete-product-btn {
+  border: 0;
+  border-radius: 10px;
+  padding: 9px 11px;
+  font-weight: 800;
+  background: #f7eaea;
+  color: #9a5252;
+}
+body[data-theme="dark"] .product-name-input {
+  background: #202421;
+  color: var(--text);
+  border-color: var(--line);
+}
+body[data-theme="dark"] .delete-product-btn {
+  background: #4a2d2d;
+  color: #f0bcbc;
+}
+@media (max-width:640px){
+  .settings-product {
+    grid-template-columns: 1fr 105px;
+  }
+  .product-admin-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+}

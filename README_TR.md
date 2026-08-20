@@ -33,3 +33,7 @@ adresine çevirir. Firebase Authentication > Users bölümünde aynı e-posta il
 
 ## V4
 Kategori ikonları, otomatik sık siparişler, kişi bazlı günlük özet, hesabı kapat/ödendi, aylık grafik, en çok tüketilenler, ürün arama, fiyat geçmişi, notlu sipariş, sabit günlük toplam ve koyu mod eklendi.
+
+
+## V5
+Ürün adı düzenleme ve ürün silme eklendi. Ürün silinmesi geçmiş sipariş kayıtlarını etkilemez.
