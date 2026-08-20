@@ -1,5 +1,5 @@
-const CACHE = "emirgan-v11";
-const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./firebase-config.js", "./manifest.json", "./icon.svg", "./logo-emirgan.svg"];
+const CACHE = "emirgan-v12";
+const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./firebase-config.js", "./manifest.json", "./icon.svg", "./logo-emirgan.svg", "./icon-192.png", "./icon-512.png", "./apple-touch-icon.png"];
 
 self.addEventListener("install", event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(ASSETS)));

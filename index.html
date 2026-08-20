@@ -4,6 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#f7f4ee" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Emirgan" />
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
   <meta name="description" content="Emirgan Cafe & Nargile kişisel sipariş ve hesap takip uygulaması" />
   <title>Emirgan Cafe & Nargile</title>
   <link rel="manifest" href="./manifest.json" />
@@ -11,6 +15,7 @@
   <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
+  <div id="offlineBanner" class="offline-banner hidden">Çevrimdışısınız. Yeni siparişler için internet bağlantısı gerekir.</div>
   <div id="updateBanner" class="update-banner hidden">
     <span>Yeni sürüm hazır.</span>
     <button id="applyUpdateButton">Güncelle</button>
@@ -88,31 +93,32 @@
             <div id="cycleBadge" class="cycle-badge">Hesap Dönemi</div>
           </div>
 
-          <div id="personTodaySummary" class="person-summary"></div>
-          <div id="dayEndSummary" class="day-end-summary card"></div>
+          <div id="cycleProgressCard" class="cycle-progress-card card" data-dashboard-block="cycleProgress"></div>
+          <div id="personTodaySummary" class="person-summary" data-dashboard-block="personSummary"></div>
+          <div id="dayEndSummary" class="day-end-summary card" data-dashboard-block="daySummary"></div>
 
           <div class="search-wrap">
             <input id="productSearch" type="search" placeholder="Ürün ara…" autocomplete="off" />
           </div>
 
-          <section class="quick-recent-section">
+          <section class="quick-recent-section" data-dashboard-block="quickRecent">
             <div class="section-heading compact-heading">
               <h3>Son 5 Sipariş</h3>
             </div>
             <div id="recentQuickStrip" class="quick-recent-strip"></div>
           </section>
 
-          <section id="favoritesSection" class="favorites-section">
+          <section id="favoritesSection" class="favorites-section" data-dashboard-block="autoFavorites">
             <div class="section-heading compact-heading">
               <h3>⭐ Sık Siparişler</h3>
             </div>
             <div id="favoriteProducts" class="favorite-grid"></div>
           </section>
 
-          <div id="categoryTabs" class="category-tabs"></div>
-          <div id="productGrid" class="product-grid"></div>
+          <div id="categoryTabs" class="category-tabs" data-dashboard-block="categories"></div>
+          <div id="productGrid" class="product-grid" data-dashboard-block="products"></div>
 
-          <div class="recent-card card">
+          <div class="recent-card card" data-dashboard-block="recentOrders">
             <div class="section-heading">
               <h3>Son Siparişler</h3>
               <button id="undoLastButton" class="text-btn">Son kaydı geri al</button>
@@ -227,6 +233,14 @@
             <div id="topProducts" class="top-products"></div>
           </div>
 
+          <div class="card annual-card">
+            <div class="section-heading compact-heading">
+              <h3>Yıllık Özet</h3>
+              <select id="annualYearSelect"></select>
+            </div>
+            <div id="annualSummary" class="annual-summary"></div>
+          </div>
+
           <div class="card stats-card">
             <h3>İstatistikler</h3>
             <div id="advancedStats" class="advanced-stats"></div>
@@ -251,6 +265,15 @@
             </div>
           </div>
           <div id="archiveCurrentCycle" class="card archive-current"></div>
+          <div class="card compare-card">
+            <h3>Dönem Karşılaştırması</h3>
+            <div class="compare-controls">
+              <select id="compareCycleA"></select>
+              <select id="compareCycleB"></select>
+              <button id="runCycleCompareButton" class="secondary-btn">Karşılaştır</button>
+            </div>
+            <div id="cycleCompareResult" class="compare-result"></div>
+          </div>
           <div id="archiveCycleList" class="archive-cycle-list"></div>
         </section>
 
@@ -298,6 +321,22 @@
               <button id="clearPriceHistoryButton" class="danger-btn compact-danger">Geçmişi Sıfırla</button>
             </div>
             <div id="priceHistoryList" class="price-history-list"></div>
+          </div>
+
+          <div class="card settings-card">
+            <h3>Yönetici PIN'i</h3>
+            <p class="settings-note">4 haneli PIN; toplu silme, çöpü boşaltma, yedek geri yükleme ve dönem kilidi açma gibi kritik işlemler için kullanılır.</p>
+            <div class="settings-actions">
+              <button id="adminPinSetupButton" class="secondary-btn">PIN Belirle / Değiştir</button>
+              <span id="adminPinStatus" class="pin-status"></span>
+            </div>
+          </div>
+
+          <div class="card settings-card">
+            <h3>Ana Ekran Düzeni</h3>
+            <p class="settings-note">Bugün ekranındaki blokları gizleyebilir veya sıralayabilirsiniz. Ayar yalnızca bu cihazda saklanır.</p>
+            <div id="layoutEditor" class="layout-editor"></div>
+            <button id="resetLayoutButton" class="secondary-btn">Varsayılan Düzeni Geri Yükle</button>
           </div>
 
           <div class="card settings-card">

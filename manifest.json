@@ -8,10 +8,22 @@
   "description": "Kaşif ve Ayşe Merve için sipariş ve hesap takip uygulaması",
   "icons": [
     {
-      "src": "./logo-emirgan.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "./icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "./icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "orientation": "portrait-primary",
+  "scope": "./"
 }

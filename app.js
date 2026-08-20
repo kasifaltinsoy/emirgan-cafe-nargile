@@ -26,7 +26,7 @@ import {
   updateDoc
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
-const APP_VERSION = "v11";
+const APP_VERSION = "v12";
 
 const CATEGORIES = [
   { id: "icecekler", label: "İçecekler", icon: "☕", color: "#e5f2f5" },
@@ -69,13 +69,15 @@ const state = {
   dayStatus: {},
   trash: [],
   billingCycles: {},
+  appSettings: {},
   search: "",
   unsubProducts: null,
   unsubOrders: null,
   unsubPriceHistory: null,
   unsubDayStatus: null,
   unsubTrash: null,
-  unsubBillingCycles: null
+  unsubBillingCycles: null,
+  unsubAppSettings: null
 };
 
 const views = { login: $("loginView"), member: $("memberView"), main: $("mainView") };
@@ -173,6 +175,102 @@ function hapticAddFeedback(productId){
     setTimeout(()=>card.classList.remove("just-added"),650);
   }
 }
+
+async function sha256Hex(text){
+  const bytes=new TextEncoder().encode(text);
+  const digest=await crypto.subtle.digest("SHA-256",bytes);
+  return [...new Uint8Array(digest)].map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+
+async function verifyAdminPin(promptText="Yönetici PIN'ini girin:"){
+  const hash=state.appSettings?.adminPinHash;
+  if(!hash) return true;
+  const pin=prompt(promptText);
+  if(pin===null) return false;
+  if(!/^\d{4}$/.test(pin)){ alert("PIN 4 haneli olmalıdır."); return false; }
+  const entered=await sha256Hex(pin);
+  if(entered!==hash){ alert("PIN hatalı."); return false; }
+  return true;
+}
+
+function renderAdminPinStatus(){
+  if(!$("adminPinStatus")) return;
+  $("adminPinStatus").textContent=state.appSettings?.adminPinHash ? "PIN aktif" : "PIN henüz belirlenmedi";
+}
+
+function isCycleLockedForDate(dateKey){
+  const c=cycleForDateKey(dateKey);
+  return !!state.billingCycles[cycleId(c)]?.locked;
+}
+
+async function requireUnlockedDate(dateKey){
+  if(!isCycleLockedForDate(dateKey)) return true;
+  alert("Bu sipariş ödenmiş ve kilitlenmiş bir hesap dönemine ait. Önce Arşiv'den dönem kilidini açın.");
+  return false;
+}
+
+const DASHBOARD_BLOCKS=[
+  ["cycleProgress","Dönem İlerlemesi"],
+  ["personSummary","Kişi Özeti"],
+  ["daySummary","Gün Sonu Özeti"],
+  ["quickRecent","Son 5 Sipariş"],
+  ["autoFavorites","Otomatik Sık Siparişler"],
+  ["categories","Kategori Sekmeleri"],
+  ["products","Ürünler"],
+  ["recentOrders","Son Siparişler"]
+];
+
+function getDashboardLayout(){
+  try{
+    const saved=JSON.parse(localStorage.getItem("emirganDashboardLayout")||"null");
+    if(Array.isArray(saved)&&saved.length) return saved;
+  }catch{}
+  return DASHBOARD_BLOCKS.map(([id])=>({id,visible:true}));
+}
+
+function saveDashboardLayout(layout){
+  localStorage.setItem("emirganDashboardLayout",JSON.stringify(layout));
+  applyDashboardLayout();
+  renderLayoutEditor();
+}
+
+function applyDashboardLayout(){
+  const layout=getDashboardLayout();
+  const today=$("todayPanel");
+  const blocks=new Map([...document.querySelectorAll("[data-dashboard-block]")].map(el=>[el.dataset.dashboardBlock,el]));
+  const anchor=$("personTodaySummary")?.parentElement;
+  layout.forEach(item=>{
+    const el=blocks.get(item.id); if(!el)return;
+    el.style.display=item.visible?"":"none";
+  });
+  // Visual order via CSS order, avoiding DOM disruption.
+  layout.forEach((item,idx)=>{
+    const el=blocks.get(item.id); if(el) el.style.order=String(idx+1);
+  });
+}
+
+function renderLayoutEditor(){
+  if(!$("layoutEditor")) return;
+  const layout=getDashboardLayout();
+  $("layoutEditor").innerHTML=layout.map((item,i)=>{
+    const label=DASHBOARD_BLOCKS.find(x=>x[0]===item.id)?.[1]||item.id;
+    return `<div class="layout-row">
+      <label><input type="checkbox" data-layout-visible="${item.id}" ${item.visible?"checked":""}/> ${label}</label>
+      <div>
+        <button data-layout-move="${item.id}" data-dir="-1" ${i===0?"disabled":""}>↑</button>
+        <button data-layout-move="${item.id}" data-dir="1" ${i===layout.length-1?"disabled":""}>↓</button>
+      </div>
+    </div>`;
+  }).join("");
+  document.querySelectorAll("[data-layout-visible]").forEach(cb=>cb.addEventListener("change",()=>{
+    const l=getDashboardLayout(), item=l.find(x=>x.id===cb.dataset.layoutVisible); if(item)item.visible=cb.checked; saveDashboardLayout(l);
+  }));
+  document.querySelectorAll("[data-layout-move]").forEach(btn=>btn.addEventListener("click",()=>{
+    const l=getDashboardLayout(), i=l.findIndex(x=>x.id===btn.dataset.layoutMove), j=i+Number(btn.dataset.dir);
+    if(i<0||j<0||j>=l.length)return; [l[i],l[j]]=[l[j],l[i]]; saveDashboardLayout(l);
+  }));
+}
+
 function categoryById(id) { return CATEGORIES.find(c => c.id === id) || CATEGORIES[0]; }
 function setTodayLabel() {
   $("todayLabel").textContent = displayDate(new Date());
@@ -197,7 +295,7 @@ async function ensureDefaults() {
 }
 
 function startRealtime() {
-  [state.unsubProducts,state.unsubOrders,state.unsubPriceHistory,state.unsubDayStatus,state.unsubTrash,state.unsubBillingCycles].forEach(fn => fn && fn());
+  [state.unsubProducts,state.unsubOrders,state.unsubPriceHistory,state.unsubDayStatus,state.unsubTrash,state.unsubBillingCycles,state.unsubAppSettings].forEach(fn => fn && fn());
 
   state.unsubProducts = onSnapshot(query(collection(db,"products"),orderBy("sortOrder")), snap => {
     state.products = snap.docs.map(d => ({id:d.id,...d.data()})); renderAll();
@@ -226,6 +324,11 @@ function startRealtime() {
     renderReports();
     renderArchive();
   }, err => console.warn("billingCycles",err));
+
+  state.unsubAppSettings = onSnapshot(doc(db,"appSettings","main"), snap => {
+    state.appSettings = snap.exists() ? snap.data() : {};
+    renderAdminPinStatus();
+  }, err => console.warn("appSettings",err));
 }
 
 function renderCategoryTabs() {
@@ -264,12 +367,10 @@ function productCardHtml(p,today) {
       <div class="product-name">${escapeHtml(p.name)}</div>
       <div class="product-price">${money(p.price)}</div>
     </div>
-    <div class="product-actions">
-      <div class="daily-count">Bugün: <strong>${count}</strong></div>
-      <div class="qty-buttons">
-        <button class="minus-btn" data-remove-product="${p.id}" ${count===0?"disabled":""}>−</button>
-        <button class="add-btn" data-add-product="${p.id}">+</button>
-      </div>
+    <div class="product-actions fast-counter">
+      <button class="minus-btn" data-remove-product="${p.id}" ${count===0?"disabled":""}>−</button>
+      <div class="daily-count"><span>Bugün</span><strong>${count}</strong></div>
+      <button class="add-btn" data-add-product="${p.id}">+</button>
     </div>
     <button class="note-order-btn" data-note-product="${p.id}">✎ Notlu sipariş</button>
   </article>`;
@@ -286,6 +387,7 @@ function bindProductButtons(root) {
 }
 
 async function removeLastProductOrder(productId) {
+  if(!(await requireUnlockedDate(localDateKey()))) return;
   const matching = todayOrders().filter(o => o.productId===productId && o.member===state.activeMember).sort((a,b)=>orderDate(b)-orderDate(a));
   if (!matching.length) return toast("Geri alınacak sipariş yok.");
   await moveOrderToTrash(matching[0].id); toast(`${matching[0].productName} • 1 adet çöp kutusuna taşındı`);
@@ -347,6 +449,18 @@ function renderToday() {
 
   const c=getBillingCycle();
   if($("cycleBadge")) $("cycleBadge").textContent=`${cycleLabel(c)} • ödeme: 19'u`;
+  const cycleOrders=ordersInCurrentCycle();
+  const now=new Date();
+  const totalDays=Math.round((c.end-c.start)/(1000*60*60*24))+1;
+  const elapsed=Math.max(1,Math.min(totalDays,Math.round((new Date(now.getFullYear(),now.getMonth(),now.getDate())-c.start)/(1000*60*60*24))+1));
+  const pct=Math.max(0,Math.min(100,(elapsed/totalDays)*100));
+  $("cycleProgressCard").innerHTML=`
+    <div class="cycle-progress-head">
+      <div><span>Mevcut Hesap Dönemi</span><strong>${cycleLabel(c)}</strong></div>
+      <b>${elapsed}/${totalDays} gün</b>
+    </div>
+    <div class="cycle-progress-bar"><i style="width:${pct}%"></i></div>
+    <div class="cycle-progress-foot"><span>${cycleOrders.length} sipariş</span><strong>${money(totalOf(cycleOrders))}</strong></div>`;
 
   const quick = today.slice(0,5);
   $("recentQuickStrip").innerHTML = quick.length ? quick.map(o=>`
@@ -386,11 +500,14 @@ function orderRowHtml(o,allowEditPrice=false) {
 
 function bindDeleteButtons(root) {
   root.querySelectorAll("[data-delete-order]").forEach(btn => btn.addEventListener("click",async()=>{
+    const target=state.orders.find(o=>o.id===btn.dataset.deleteOrder);
+    if(target && !(await requireUnlockedDate(target.dateKey))) return;
     if (!confirm("Bu sipariş kaydı silinsin mi?")) return;
     await moveOrderToTrash(btn.dataset.deleteOrder); toast("Sipariş çöp kutusuna taşındı");
   }));
   root.querySelectorAll("[data-edit-price]").forEach(btn => btn.addEventListener("click",async()=>{
     const order = state.orders.find(o=>o.id===btn.dataset.editPrice);
+    if(order && !(await requireUnlockedDate(order.dateKey))) return;
     const next = prompt("Bu sipariş için uygulanacak fiyatı yazın (TL):", order?.unitPrice ?? "");
     if (next===null) return;
     const normalized = next.trim()===""?null:Number(next.replace(",","."));
@@ -413,7 +530,9 @@ function bindDeleteButtons(root) {
     }
   }));
 
-  root.querySelectorAll("[data-edit-order]").forEach(btn => btn.addEventListener("click",()=>{
+  root.querySelectorAll("[data-edit-order]").forEach(btn => btn.addEventListener("click",async()=>{
+    const order=state.orders.find(o=>o.id===btn.dataset.editOrder);
+    if(order && !(await requireUnlockedDate(order.dateKey))) return;
     openEditOrder(btn.dataset.editOrder);
   }));
 }
@@ -511,6 +630,7 @@ function renderReports() {
   drawMonthlyChart(orders,month);
   renderAdvancedStats(orders);
   renderPriceIncreaseAnalysis();
+  renderAnnualSummary();
 }
 
 function drawMonthlyChart(orders,month) {
@@ -748,6 +868,9 @@ function renderArchive(){
       </div>
       <div class="archive-actions">
         <button class="secondary-btn" data-print-cycle="${cid}">PDF Özeti</button>
+        <button class="${meta.locked?"danger-btn":"secondary-btn"}" data-toggle-lock="${cid}">
+          ${meta.locked?"🔒 Kilidi Aç":"🔓 Dönemi Kilitle"}
+        </button>
       </div>
     </div>`;
   }).join("");
@@ -756,8 +879,80 @@ function renderArchive(){
     const [s,e]=btn.dataset.printCycle.split("__");
     printCycleSummary({startKey:s,endKey:e,start:new Date(s+"T12:00:00"),end:new Date(e+"T12:00:00")});
   }));
+
+  document.querySelectorAll("[data-toggle-lock]").forEach(btn=>btn.addEventListener("click",async()=>{
+    const cid=btn.dataset.toggleLock, meta=state.billingCycles[cid]||{}, next=!meta.locked;
+    if(!next){
+      if(!(await verifyAdminPin("Dönem kilidini açmak için yönetici PIN'ini girin:"))) return;
+    }else if(!confirm("Bu hesap dönemi kilitlensin mi? Kilitliyken siparişler değiştirilemez veya silinemez.")) return;
+    const [s,e]=cid.split("__");
+    await setDoc(doc(db,"billingCycles",cid),{startKey:s,endKey:e,locked:next,lockedAt:next?serverTimestamp():null},{merge:true});
+    toast(next?"Dönem kilitlendi.":"Dönem kilidi açıldı.");
+  }));
+
+  const opts=ranges.map(c=>`<option value="${cycleId(c)}">${cycleLabel(c)}</option>`).join("");
+  $("compareCycleA").innerHTML=opts;
+  $("compareCycleB").innerHTML=opts;
+  if(ranges[1]) $("compareCycleB").value=cycleId(ranges[1]);
 }
 
+
+function cycleStatsById(cid){
+  const [s,e]=cid.split("__");
+  const os=state.orders.filter(o=>o.dateKey>=s&&o.dateKey<=e);
+  const days=new Set(os.map(o=>o.dateKey)).size;
+  return {
+    orders:os,
+    count:os.length,
+    total:totalOf(os),
+    days,
+    kasif:totalOf(os.filter(o=>o.member==="Kaşif")),
+    ayse:totalOf(os.filter(o=>o.member==="Ayşe Merve"))
+  };
+}
+
+function runCycleComparison(){
+  const a=$("compareCycleA").value,b=$("compareCycleB").value;
+  if(!a||!b) return;
+  const A=cycleStatsById(a),B=cycleStatsById(b);
+  const diff=A.total-B.total;
+  const pct=B.total>0?(diff/B.total)*100:null;
+  $("cycleCompareResult").innerHTML=`
+    <div><span>A Dönemi</span><strong>${money(A.total)}</strong><em>${A.count} sipariş • ${A.days} gün</em></div>
+    <div><span>B Dönemi</span><strong>${money(B.total)}</strong><em>${B.count} sipariş • ${B.days} gün</em></div>
+    <div><span>Fark</span><strong>${diff>=0?"+":""}${money(diff)}</strong><em>${pct===null?"—":`${pct>=0?"+":""}${pct.toFixed(1)}%`}</em></div>
+    <div><span>Kaşif Farkı</span><strong>${money(A.kasif-B.kasif)}</strong></div>
+    <div><span>Ayşe Merve Farkı</span><strong>${money(A.ayse-B.ayse)}</strong></div>`;
+}
+
+function renderAnnualSummary(){
+  if(!$("annualYearSelect")) return;
+  const years=[...new Set(state.orders.map(o=>String(o.dateKey||"").slice(0,4)).filter(Boolean))].sort().reverse();
+  if(!years.length) years.push(String(new Date().getFullYear()));
+  const current=$("annualYearSelect").value||years[0];
+  $("annualYearSelect").innerHTML=years.map(y=>`<option value="${y}" ${y===current?"selected":""}>${y}</option>`).join("");
+  const os=state.orders.filter(o=>String(o.dateKey||"").startsWith(current+"-"));
+  const days=new Set(os.map(o=>o.dateKey)).size;
+  const months=new Map();
+  os.forEach(o=>months.set(o.monthKey,(months.get(o.monthKey)||0)+(Number(o.unitPrice)||0)));
+  const maxMonth=[...months.entries()].sort((a,b)=>b[1]-a[1])[0];
+  const grouped=new Map();
+  os.forEach(o=>grouped.set(o.productName,(grouped.get(o.productName)||0)+1));
+  const top=[...grouped.entries()].sort((a,b)=>b[1]-a[1]).slice(0,10);
+  $("annualSummary").innerHTML=`
+    <div class="annual-kpis">
+      <div><span>Yıllık Toplam</span><strong>${money(totalOf(os))}</strong></div>
+      <div><span>Ziyaret Günü</span><strong>${days}</strong></div>
+      <div><span>Toplam Sipariş</span><strong>${os.length}</strong></div>
+      <div><span>Aylık Ortalama</span><strong>${money(months.size?totalOf(os)/months.size:0)}</strong></div>
+      <div><span>En Pahalı Ay</span><strong>${maxMonth?`${maxMonth[0]} • ${money(maxMonth[1])}`:"—"}</strong></div>
+      <div><span>Kaşif</span><strong>${money(totalOf(os.filter(o=>o.member==="Kaşif")))}</strong></div>
+      <div><span>Ayşe Merve</span><strong>${money(totalOf(os.filter(o=>o.member==="Ayşe Merve")))}</strong></div>
+    </div>
+    <div class="annual-top"><h4>En Çok Tüketilen 10 Ürün</h4>
+      ${top.length?top.map(([n,c],i)=>`<div><span>${i+1}. ${escapeHtml(n)}</span><strong>${c} adet</strong></div>`).join(""):`<p>Kayıt yok.</p>`}
+    </div>`;
+}
 function renderSettings() {
   const filter=$("settingsCategoryFilter").value||state.activeCategory;
   const products=sortTr(state.products.filter(p=>p.category===filter));
@@ -833,6 +1028,8 @@ function renderSettings() {
   }));
 
   renderPriceHistory();
+  renderLayoutEditor();
+  renderAdminPinStatus();
 }
 
 function renderPriceHistory() {
@@ -912,10 +1109,12 @@ function runRangeReport(){
 }
 
 async function deleteOrdersForDate(dateKey){
+  if(!(await requireUnlockedDate(dateKey))) return false;
   const orders=state.orders.filter(o=>o.dateKey===dateKey);
   if(!orders.length) return toast("Bu tarihte silinecek kayıt yok.");
   for(const o of orders) await moveOrderToTrash(o.id);
   if(state.dayStatus[dateKey]) await deleteDoc(doc(db,"days",dateKey));
+  return true;
 }
 
 
@@ -1078,6 +1277,7 @@ $("themeToggleButton").addEventListener("click",()=>{
 });
 
 $("clearPriceHistoryButton").addEventListener("click", async ()=>{
+  if(!(await verifyAdminPin("Fiyat geçmişini sıfırlamak için yönetici PIN'ini girin:"))) return;
   if(!state.priceHistory.length) return toast("Silinecek fiyat geçmişi yok.");
   const ok = confirm(`Fiyat geçmişindeki ${state.priceHistory.length} kayıt tamamen silinsin mi?\n\nBu işlem ürünlerin mevcut fiyatlarını ve geçmiş siparişleri etkilemez.`);
   if(!ok) return;
@@ -1120,6 +1320,7 @@ $("backupJsonButton").addEventListener("click",backupJson);
 $("backupJsonButtonSettings").addEventListener("click",backupJson);
 
 $("deleteTodayButton").addEventListener("click",async()=>{
+  if(!(await verifyAdminPin("Bugünkü kayıtları toplu silmek için yönetici PIN'ini girin:"))) return;
   const key=localDateKey();
   const count=state.orders.filter(o=>o.dateKey===key).length;
   if(!count) return toast("Bugün silinecek kayıt yok.");
@@ -1128,6 +1329,7 @@ $("deleteTodayButton").addEventListener("click",async()=>{
 });
 
 $("deleteSelectedDayButton").addEventListener("click",async()=>{
+  if(!(await verifyAdminPin("Seçilen günün kayıtlarını toplu silmek için yönetici PIN'ini girin:"))) return;
   const key=$("historyDate").value;
   const count=state.orders.filter(o=>o.dateKey===key).length;
   if(!count) return toast("Seçilen günde silinecek kayıt yok.");
@@ -1146,6 +1348,27 @@ $("closeFavoritePicker").addEventListener("click",()=>$("favoritePicker").classL
 $("favoritePickerSearch").addEventListener("input",renderFavoritePicker);
 
 
+$("adminPinSetupButton").addEventListener("click",async()=>{
+  const oldHash=state.appSettings?.adminPinHash;
+  if(oldHash && !(await verifyAdminPin("Mevcut yönetici PIN'ini girin:"))) return;
+  const pin=prompt("Yeni 4 haneli yönetici PIN'ini girin:");
+  if(pin===null)return;
+  if(!/^\d{4}$/.test(pin)) return alert("PIN tam olarak 4 rakam olmalıdır.");
+  const again=prompt("PIN'i tekrar girin:");
+  if(again!==pin) return alert("PIN'ler eşleşmedi.");
+  const hash=await sha256Hex(pin);
+  await setDoc(doc(db,"appSettings","main"),{adminPinHash:hash,updatedAt:serverTimestamp()},{merge:true});
+  toast("Yönetici PIN'i kaydedildi.");
+});
+
+$("resetLayoutButton").addEventListener("click",()=>{
+  localStorage.removeItem("emirganDashboardLayout");
+  applyDashboardLayout(); renderLayoutEditor(); toast("Ana ekran düzeni sıfırlandı.");
+});
+
+$("runCycleCompareButton").addEventListener("click",runCycleComparison);
+$("annualYearSelect").addEventListener("change",renderAnnualSummary);
+
 $("saveReconciliationButton").addEventListener("click",async()=>{
   const c=getBillingCycle(), cid=cycleId(c);
   const raw=$("cafeStatementAmount").value.trim();
@@ -1163,7 +1386,7 @@ $("markCyclePaidButton").addEventListener("click",async()=>{
   const next=!meta.paid;
   if(next && !confirm(`${cycleLabel(c)} dönemi ödendi olarak işaretlensin mi?`)) return;
   await setDoc(doc(db,"billingCycles",cid),{
-    startKey:c.startKey,endKey:c.endKey,paid:next,
+    startKey:c.startKey,endKey:c.endKey,paid:next,locked:next ? true : (meta.locked??false),
     paidAt:next?serverTimestamp():null,paidBy:next?state.activeMember:null
   },{merge:true});
   toast(next?"Dönem ödendi olarak arşivlendi.":"Ödendi işareti kaldırıldı.");
@@ -1173,11 +1396,13 @@ $("printCyclePdfButton").addEventListener("click",()=>printCycleSummary(getBilli
 $("systemCheckButton").addEventListener("click",runSystemCheck);
 $("restoreBackupInput").addEventListener("change",async e=>{
   const file=e.target.files?.[0]; if(!file)return;
+  if(!(await verifyAdminPin("Yedek geri yüklemek için yönetici PIN'ini girin:"))){e.target.value="";return;}
   try{await restoreBackupFile(file);}catch(err){console.error(err);alert("Yedek geri yüklenirken hata oluştu.");}
   e.target.value="";
 });
 
 $("emptyTrashButton").addEventListener("click",async()=>{
+  if(!(await verifyAdminPin("Çöp kutusunu boşaltmak için yönetici PIN'ini girin:"))) return;
   if(!state.trash.length) return toast("Çöp kutusu zaten boş.");
   if(!confirm(`Çöp kutusundaki ${state.trash.length} kayıt kalıcı olarak silinsin mi?`)) return;
   await Promise.all(state.trash.map(t=>deleteDoc(doc(db,"trash",t.id))));
@@ -1186,7 +1411,7 @@ $("emptyTrashButton").addEventListener("click",async()=>{
 
 onAuthStateChanged(auth,async user=>{
   if(!user){
-    [state.unsubProducts,state.unsubOrders,state.unsubPriceHistory,state.unsubDayStatus,state.unsubTrash,state.unsubBillingCycles].forEach(fn=>fn&&fn());
+    [state.unsubProducts,state.unsubOrders,state.unsubPriceHistory,state.unsubDayStatus,state.unsubTrash,state.unsubBillingCycles,state.unsubAppSettings].forEach(fn=>fn&&fn());
     showView("login"); return;
   }
   try{
@@ -1196,8 +1421,15 @@ onAuthStateChanged(auth,async user=>{
   }catch(err){console.error(err);alert("Firebase bağlantısı kurulamadı. Firestore kurallarını kontrol edin.");}
 });
 
-setupCategorySelects(); setTodayLabel(); applyTheme();
+setupCategorySelects(); setTodayLabel(); applyTheme(); applyDashboardLayout(); renderLayoutEditor();
 if($("appVersionLabel")) $("appVersionLabel").textContent=`Emirgan ${APP_VERSION}`;
+
+function updateOnlineStatus(){
+  $("offlineBanner").classList.toggle("hidden",navigator.onLine);
+}
+window.addEventListener("online",updateOnlineStatus);
+window.addEventListener("offline",updateOnlineStatus);
+updateOnlineStatus();
 
 if("serviceWorker"in navigator){
   window.addEventListener("load",async()=>{

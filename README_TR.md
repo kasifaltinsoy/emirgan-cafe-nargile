@@ -89,3 +89,17 @@ Sık Kullanılanlar artık doğrudan kendi sekmesinden yönetilir. + Ürün Ekle
 - JSON yedekten geri yükleme
 - Sistem veri bütünlüğü kontrolü
 - Ayrı Arşiv sekmesi
+
+
+## V12
+Seçili geliştirmeler:
+1. Ödenmiş dönemlerde dönem kilidi; kilidi açmak için yönetici PIN'i.
+4. Ürün kartlarında hızlı ve belirgin − / günlük adet / + sayacı.
+6. Arşivde iki hesap dönemini yan yana karşılaştırma.
+7. Yıllık özet ve en çok tüketilen 10 ürün.
+8. Bugün ekranında mevcut hesap dönemi ilerleme kartı.
+10. Kritik işlemler için 4 haneli yönetici PIN'i.
+11. Ana ekran bloklarını göster/gizle ve sırala.
+12. iOS/PWA ikonları, safe-area, çevrimdışı uyarısı ve geliştirilmiş mobil görünüm.
+
+Not: 4 haneli PIN, ortak Firebase hesabını kullanan kişiler arasında yanlışlıkla yapılan kritik işlemlere karşı ek korumadır; ayrı bir kimlik doğrulama güvenlik katmanı değildir.

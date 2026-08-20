@@ -596,3 +596,65 @@ body[data-theme="dark"] .favorite-order-controls button { background:#303a32; co
   .nav-btn { font-size:9px; padding:7px 1px; }
   .nav-btn span { font-size:16px; }
 }
+
+
+/* ===== V12 kilit / karşılaştırma / yıllık / PIN / PWA ===== */
+html { background: var(--bg); }
+body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+.topbar { padding-top: calc(18px + env(safe-area-inset-top)); }
+.bottom-nav { bottom: calc(10px + env(safe-area-inset-bottom)); }
+
+.offline-banner {
+  position:fixed; z-index:250; top:0; left:0; right:0;
+  padding:8px 12px; text-align:center; background:#8a604c; color:#fff; font-size:12px; font-weight:800;
+}
+
+.cycle-progress-card { padding:14px 16px; margin-bottom:14px; }
+.cycle-progress-head,.cycle-progress-foot { display:flex; justify-content:space-between; gap:10px; align-items:center; }
+.cycle-progress-head span { display:block; color:var(--muted); font-size:10px; }
+.cycle-progress-head strong { display:block; margin-top:2px; }
+.cycle-progress-bar { height:8px; background:#e7ebe6; border-radius:999px; overflow:hidden; margin:10px 0; }
+.cycle-progress-bar i { display:block; height:100%; background:#78917e; border-radius:999px; }
+.cycle-progress-foot { color:var(--muted); font-size:11px; }
+.cycle-progress-foot strong { color:var(--text); font-size:15px; }
+
+.fast-counter { grid-template-columns:48px 1fr 48px !important; }
+.fast-counter .daily-count { text-align:center; }
+.fast-counter .daily-count span { display:block; font-size:10px; color:var(--muted); }
+.fast-counter .daily-count strong { display:block; font-size:24px; line-height:1; margin-top:2px; }
+
+.compare-card,.annual-card { padding:16px; margin-bottom:14px; }
+.compare-controls { display:grid; grid-template-columns:1fr 1fr auto; gap:8px; }
+.compare-result { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin-top:12px; }
+.compare-result div,.annual-kpis div { padding:10px; border:1px solid var(--line); border-radius:12px; background:#faf9f5; }
+.compare-result span,.annual-kpis span { display:block; color:var(--muted); font-size:10px; }
+.compare-result strong,.annual-kpis strong { display:block; margin-top:3px; }
+.compare-result em { display:block; color:var(--muted); font-size:10px; font-style:normal; margin-top:2px; }
+
+.annual-kpis { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.annual-top { margin-top:14px; }
+.annual-top h4 { margin:0 0 8px; }
+.annual-top > div { display:flex; justify-content:space-between; gap:10px; padding:7px 2px; border-top:1px solid var(--line); font-size:12px; }
+
+.pin-status { color:var(--muted); font-size:12px; align-self:center; }
+.layout-editor { display:grid; gap:7px; margin-bottom:10px; }
+.layout-row { display:flex; justify-content:space-between; gap:10px; align-items:center; padding:9px 10px; border-radius:12px; background:#faf9f5; }
+.layout-row label { margin:0; display:flex; grid-template-columns:none; align-items:center; gap:8px; }
+.layout-row label input { width:18px; height:18px; }
+.layout-row button { width:32px; height:30px; border:0; border-radius:8px; background:#edf3ee; color:#526b57; font-weight:900; }
+.layout-row button:disabled { opacity:.3; }
+
+/* Today dashboard blocks use flex ordering */
+#todayPanel.active { display:flex; flex-direction:column; }
+#todayPanel > .summary-strip { order:0; }
+
+body[data-theme="dark"] .compare-result div,
+body[data-theme="dark"] .annual-kpis div,
+body[data-theme="dark"] .layout-row { background:#282d29; }
+body[data-theme="dark"] .cycle-progress-bar { background:#323833; }
+
+@media(max-width:640px){
+  .compare-controls { grid-template-columns:1fr; }
+  .compare-result { grid-template-columns:1fr 1fr; }
+  .annual-kpis { grid-template-columns:1fr 1fr; }
+}
