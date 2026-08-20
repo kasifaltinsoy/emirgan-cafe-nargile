@@ -26,7 +26,7 @@ import {
   updateDoc
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
-const APP_VERSION = "v7";
+const APP_VERSION = "v8";
 
 const CATEGORIES = [
   { id: "icecekler", label: "İçecekler", icon: "☕", color: "#e5f2f5" },
@@ -476,8 +476,26 @@ function renderSettings() {
       return alert("Ürün adı boş bırakılamaz.");
     }
     if(newName===product?.name) return;
-    await updateDoc(doc(db,"products",input.dataset.productName),{name:newName});
-    toast("Ürün adı güncellendi. Geçmiş siparişler değişmedi.");
+
+    const oldName = product?.name || "";
+    const productId = input.dataset.productName;
+
+    try {
+      await updateDoc(doc(db,"products",productId),{name:newName});
+
+      const relatedOrders = state.orders.filter(o => o.productId === productId);
+      const relatedHistory = state.priceHistory.filter(h => h.productId === productId);
+
+      await Promise.all([
+        ...relatedOrders.map(o => updateDoc(doc(db,"orders",o.id),{productName:newName})),
+        ...relatedHistory.map(h => updateDoc(doc(db,"priceHistory",h.id),{productName:newName}))
+      ]);
+
+      toast(`"${oldName}" adı "${newName}" olarak tüm geçmişte güncellendi.`);
+    } catch(err) {
+      console.error(err);
+      alert("Ürün adı güncellenirken hata oluştu.");
+    }
   }));
 
   document.querySelectorAll("[data-pin-product]").forEach(btn=>btn.addEventListener("click",async()=>{

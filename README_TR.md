@@ -57,3 +57,7 @@ Fiyat Geçmişi bölümüne 'Geçmişi Sıfırla' butonu eklendi. Bu işlem yaln
 - Bugün/seçilen gün kayıtlarını sıfırlama
 - Tek dokunuşla Kaşif/Ayşe Merve geçişi
 - Uygulama içi sürüm numarası
+
+
+## V8
+Ürün adı değiştirildiğinde aynı productId ile bağlı tüm geçmiş siparişlerde ve fiyat geçmişinde ürün adı da otomatik güncellenir.
