@@ -201,7 +201,9 @@ function todayOrders() {
 }
 
 function renderProducts() {
-  const products = state.products.filter(p => p.active !== false && p.category === state.activeCategory);
+  const products = state.products
+    .filter(p => p.active !== false && p.category === state.activeCategory)
+    .sort((a, b) => a.name.localeCompare(b.name, "tr", { sensitivity: "base" }));
   const today = todayOrders();
   $("productGrid").innerHTML = products.length ? products.map(p => {
     const count = today.filter(o => o.productId === p.id).length;
@@ -368,7 +370,9 @@ function renderReports() {
 
 function renderSettings() {
   const filter = $("settingsCategoryFilter").value || state.activeCategory;
-  const products = state.products.filter(p => p.category === filter);
+  const products = state.products
+    .filter(p => p.category === filter)
+    .sort((a, b) => a.name.localeCompare(b.name, "tr", { sensitivity: "base" }));
   $("settingsProductList").innerHTML = products.length ? products.map(p => `
     <div class="settings-product">
       <div>
