@@ -26,7 +26,7 @@ import {
   updateDoc
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
-const APP_VERSION = "v9";
+const APP_VERSION = "v10";
 
 const CATEGORIES = [
   { id: "icecekler", label: "İçecekler", icon: "☕", color: "#e5f2f5" },
@@ -533,8 +533,33 @@ function renderPinnedFavorites(){
   if(!$("pinnedFavoritesGrid")) return;
   const pinned=sortTr(state.products.filter(p=>p.active!==false&&p.favoritePinned));
   const today=todayOrders();
-  $("pinnedFavoritesGrid").innerHTML=pinned.length?pinned.map(p=>productCardHtml(p,today)).join(""):`<div class="empty">Henüz sabit favori seçmediniz. Ayarlar → Ürün ve Fiyatlar bölümünden ☆ Favori düğmesini kullanın.</div>`;
+  $("pinnedFavoritesGrid").innerHTML=pinned.length?pinned.map(p=>{
+    const html=productCardHtml(p,today);
+    return html.replace("</article>", `<button class="remove-favorite-btn" data-unpin-product="${p.id}">★ Sık Kullanılanlardan Çıkar</button></article>`);
+  }).join(""):`<div class="empty">Henüz sık kullanılan ürün eklemediniz. Yukarıdaki “+ Ürün Ekle” düğmesine basın.</div>`;
   bindProductButtons($("pinnedFavoritesGrid"));
+  document.querySelectorAll("[data-unpin-product]").forEach(btn=>btn.addEventListener("click",async()=>{
+    await updateDoc(doc(db,"products",btn.dataset.unpinProduct),{favoritePinned:false});
+    toast("Sık kullanılanlardan çıkarıldı.");
+  }));
+}
+
+function renderFavoritePicker(){
+  if(!$("favoritePickerList")) return;
+  const q=($("favoritePickerSearch")?.value||"").trim().toLocaleLowerCase("tr-TR");
+  const products=sortTr(state.products.filter(p=>p.active!==false && (!q || p.name.toLocaleLowerCase("tr-TR").includes(q))));
+  $("favoritePickerList").innerHTML=products.length?products.map(p=>`
+    <button class="favorite-picker-item ${p.favoritePinned?"selected":""}" data-picker-product="${p.id}">
+      <span>${categoryById(p.category).icon}</span>
+      <strong>${escapeHtml(p.name)}</strong>
+      <em>${p.favoritePinned?"★ Eklendi":"+ Ekle"}</em>
+    </button>`).join(""):`<div class="empty">Ürün bulunamadı.</div>`;
+  document.querySelectorAll("[data-picker-product]").forEach(btn=>btn.addEventListener("click",async()=>{
+    const p=state.products.find(x=>x.id===btn.dataset.pickerProduct);
+    if(!p) return;
+    await updateDoc(doc(db,"products",p.id),{favoritePinned:!p.favoritePinned});
+    toast(p.favoritePinned?"Sık kullanılanlardan çıkarıldı.":"Sık kullanılanlara eklendi.");
+  }));
 }
 
 async function moveOrderToTrash(orderId){
@@ -591,7 +616,6 @@ function renderSettings() {
       </div>
       <input class="mini-input" data-product-price="${p.id}" type="number" min="0" step="0.01" value="${p.price??""}" placeholder="Fiyat" />
       <div class="product-admin-actions">
-        <button class="favorite-pin-btn ${p.favoritePinned?"on":""}" data-pin-product="${p.id}">${p.favoritePinned?"★ Favori":"☆ Favori"}</button>
         <button class="toggle-btn ${p.active===false?"off":""}" data-toggle-product="${p.id}">${p.active===false?"Pasif":"Aktif"}</button>
         <button class="delete-product-btn" data-delete-product="${p.id}">Sil</button>
       </div>
@@ -641,12 +665,6 @@ function renderSettings() {
     }
   }));
 
-  document.querySelectorAll("[data-pin-product]").forEach(btn=>btn.addEventListener("click",async()=>{
-    const p=state.products.find(x=>x.id===btn.dataset.pinProduct);
-    await updateDoc(doc(db,"products",p.id),{favoritePinned:!p.favoritePinned});
-    toast(!p.favoritePinned ? "Favorilere sabitlendi" : "Favori sabitlemesi kaldırıldı");
-  }));
-
   document.querySelectorAll("[data-toggle-product]").forEach(btn=>btn.addEventListener("click",async()=>{
     const p=state.products.find(x=>x.id===btn.dataset.toggleProduct);
     await updateDoc(doc(db,"products",p.id),{active:p.active===false});
@@ -677,7 +695,7 @@ function renderPriceHistory() {
 }
 
 function renderAll() {
-  renderCategoryTabs(); renderProducts(); renderToday(); renderHistory(); renderReports(); renderSettings(); renderPinnedFavorites(); renderTrash();
+  renderCategoryTabs(); renderProducts(); renderToday(); renderHistory(); renderReports(); renderSettings(); renderPinnedFavorites(); renderFavoritePicker(); renderTrash();
 }
 
 function setupCategorySelects() {
@@ -874,6 +892,15 @@ $("deleteSelectedDayButton").addEventListener("click",async()=>{
   await deleteOrdersForDate(key); toast("Seçilen gün sıfırlandı.");
 });
 
+
+$("manageFavoritesButton").addEventListener("click",()=>{
+  $("favoritePicker").classList.remove("hidden");
+  $("favoritePickerSearch").value="";
+  renderFavoritePicker();
+  $("favoritePickerSearch").focus();
+});
+$("closeFavoritePicker").addEventListener("click",()=>$("favoritePicker").classList.add("hidden"));
+$("favoritePickerSearch").addEventListener("input",renderFavoritePicker);
 
 $("emptyTrashButton").addEventListener("click",async()=>{
   if(!state.trash.length) return toast("Çöp kutusu zaten boş.");

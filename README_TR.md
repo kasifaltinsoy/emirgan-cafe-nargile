@@ -71,3 +71,7 @@ Fiyat Geçmişi bölümüne 'Geçmişi Sıfırla' butonu eklendi. Bu işlem yaln
 - Siparişler silindiğinde Çöp Kutusuna taşınır; geri yüklenebilir.
 - Ayrı Sık Kullanılanlar sekmesi eklendi; Ayarlar'dan yıldızlanan ürünler burada görünür.
 - Yeni Emirgan görsel kimliği ve logo eklendi.
+
+
+## V10
+Sık Kullanılanlar artık doğrudan kendi sekmesinden yönetilir. + Ürün Ekle ile ürün seçilebilir, aynı ekrandan favoriden çıkarılabilir. Ayarlar bölümündeki favori yönetimi kaldırıldı.

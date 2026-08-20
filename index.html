@@ -118,8 +118,17 @@
           <div class="section-heading">
             <div>
               <h2>Sık Kullanılanlar</h2>
-              <p>Ayarlar bölümünde yıldızladığınız ürünlere hızlı erişim.</p>
+              <p>Favorilerinizi doğrudan buradan ekleyip kaldırabilirsiniz.</p>
             </div>
+            <button id="manageFavoritesButton" class="secondary-btn favorites-manage-btn">+ Ürün Ekle</button>
+          </div>
+          <div id="favoritePicker" class="card favorite-picker hidden">
+            <div class="section-heading compact-heading">
+              <h3>Sık Kullanılanlara Ekle</h3>
+              <button id="closeFavoritePicker" class="text-btn">Kapat</button>
+            </div>
+            <input id="favoritePickerSearch" type="search" placeholder="Ürün ara…" autocomplete="off" />
+            <div id="favoritePickerList" class="favorite-picker-list"></div>
           </div>
           <div id="pinnedFavoritesGrid" class="product-grid"></div>
         </section>

@@ -496,3 +496,28 @@ body[data-theme="dark"] .trash-row { background:#282d29; }
   .bottom-nav { width:calc(100% - 12px); }
   .nav-btn { font-size:10px; }
 }
+
+
+/* ===== V10 doğrudan sık kullanılan yönetimi ===== */
+.favorites-manage-btn { width:auto; padding:10px 13px; }
+.favorite-picker { padding:14px; margin-bottom:14px; }
+.favorite-picker-list {
+  display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; margin-top:10px;
+  max-height:360px; overflow:auto;
+}
+.favorite-picker-item {
+  display:grid; grid-template-columns:28px 1fr auto; align-items:center; gap:7px;
+  border:1px solid var(--line); border-radius:13px; padding:10px;
+  background:#faf9f5; color:var(--text); text-align:left;
+}
+.favorite-picker-item em { font-style:normal; color:var(--primary); font-size:11px; font-weight:800; }
+.favorite-picker-item.selected { background:#edf4ee; border-color:#cbdacb; }
+.remove-favorite-btn {
+  border:0; background:transparent; color:#8b7351; font-size:11px;
+  font-weight:800; padding:0; text-align:left;
+}
+body[data-theme="dark"] .favorite-picker-item { background:#282d29; }
+body[data-theme="dark"] .favorite-picker-item.selected { background:#304034; }
+@media(max-width:640px){
+  .favorite-picker-list { grid-template-columns:1fr; }
+}

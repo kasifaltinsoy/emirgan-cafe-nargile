@@ -1,4 +1,4 @@
-const CACHE = "emirgan-v9";
+const CACHE = "emirgan-v10";
 const ASSETS = ["./", "./index.html", "./styles.css", "./app.js", "./firebase-config.js", "./manifest.json", "./icon.svg", "./logo-emirgan.svg"];
 
 self.addEventListener("install", event => {
