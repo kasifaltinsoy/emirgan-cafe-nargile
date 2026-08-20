@@ -61,3 +61,13 @@ Fiyat Geçmişi bölümüne 'Geçmişi Sıfırla' butonu eklendi. Bu işlem yaln
 
 ## V8
 Ürün adı değiştirildiğinde aynı productId ile bağlı tüm geçmiş siparişlerde ve fiyat geçmişinde ürün adı da otomatik güncellenir.
+
+
+## V9
+- Aylık hesap dönemi: her ay 20'sinde başlar, sonraki ayın 18'inde biter; 19'u ödeme günü.
+- Günlük ödeme/hesap kapatma mantığı kaldırıldı.
+- Gelişmiş istatistikler eklendi.
+- Fiyat artış analizi eklendi.
+- Siparişler silindiğinde Çöp Kutusuna taşınır; geri yüklenebilir.
+- Ayrı Sık Kullanılanlar sekmesi eklendi; Ayarlar'dan yıldızlanan ürünler burada görünür.
+- Yeni Emirgan görsel kimliği ve logo eklendi.

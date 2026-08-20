@@ -18,7 +18,7 @@
   <div id="app">
     <section id="loginView" class="screen auth-screen">
       <div class="brand-card">
-        <div class="brand-mark">E</div>
+        <img class="brand-logo" src="./logo-emirgan.svg" alt="Emirgan logosu" />
         <h1>Emirgan</h1>
         <p>Cafe &amp; Nargile</p>
       </div>
@@ -45,7 +45,7 @@
     <section id="memberView" class="screen hidden">
       <div class="member-picker card">
         <div class="brand-inline">
-          <div class="brand-mark small">E</div>
+          <img class="brand-logo small" src="./logo-emirgan.svg" alt="Emirgan logosu" />
           <div>
             <strong>Emirgan</strong>
             <span>Cafe &amp; Nargile</span>
@@ -63,10 +63,13 @@
 
     <section id="mainView" class="hidden app-shell">
       <header class="topbar">
-        <div>
+        <div class="topbar-brand">
+          <img class="topbar-logo" src="./logo-emirgan.svg" alt="Emirgan" />
+          <div>
           <div class="eyebrow">EMİRGAN</div>
           <h1>Cafe &amp; Nargile</h1>
           <div id="todayLabel" class="subtle"></div>
+          </div>
         </div>
         <button id="activeMemberButton" class="member-chip" title="Kullanıcı değiştir"></button>
       </header>
@@ -82,7 +85,7 @@
               <span>Hesap</span>
               <strong id="todayTotal">₺0,00</strong>
             </div>
-            <button id="closeDayButton" class="close-day-btn">Hesabı Kapat</button>
+            <div id="cycleBadge" class="cycle-badge">Hesap Dönemi</div>
           </div>
 
           <div id="personTodaySummary" class="person-summary"></div>
@@ -109,6 +112,16 @@
             </div>
             <div id="recentOrders" class="order-list"></div>
           </div>
+        </section>
+
+        <section id="favoritesPanel" class="panel">
+          <div class="section-heading">
+            <div>
+              <h2>Sık Kullanılanlar</h2>
+              <p>Ayarlar bölümünde yıldızladığınız ürünlere hızlı erişim.</p>
+            </div>
+          </div>
+          <div id="pinnedFavoritesGrid" class="product-grid"></div>
         </section>
 
         <section id="historyPanel" class="panel">
@@ -143,6 +156,7 @@
             <button class="filter-chip" data-report-person="Kaşif">Kaşif</button>
             <button class="filter-chip" data-report-person="Ayşe Merve">Ayşe Merve</button>
           </div>
+          <div id="billingCycleCard" class="card billing-cycle-card"></div>
           <div id="reportCards" class="report-cards"></div>
 
           <div class="card range-card">
@@ -178,6 +192,16 @@
           <div class="card">
             <h3>En Çok Tüketilenler</h3>
             <div id="topProducts" class="top-products"></div>
+          </div>
+
+          <div class="card stats-card">
+            <h3>İstatistikler</h3>
+            <div id="advancedStats" class="advanced-stats"></div>
+          </div>
+
+          <div class="card stats-card">
+            <h3>Fiyat Artış Analizi</h3>
+            <div id="priceIncreaseAnalysis" class="price-analysis"></div>
           </div>
 
           <div class="card">
@@ -249,6 +273,17 @@
           </div>
 
           <div class="card settings-card">
+            <div class="section-heading compact-heading">
+              <div>
+                <h3>Çöp Kutusu</h3>
+                <p class="settings-note">Silinen siparişler burada tutulur ve geri alınabilir.</p>
+              </div>
+              <button id="emptyTrashButton" class="danger-btn compact-danger">Çöpü Boşalt</button>
+            </div>
+            <div id="trashList" class="trash-list"></div>
+          </div>
+
+          <div class="card settings-card">
             <h3>Uygulama</h3>
             <div class="version-row">
               <span>Sürüm</span>
@@ -268,6 +303,7 @@
 
       <nav class="bottom-nav">
         <button class="nav-btn active" data-panel="todayPanel"><span>⌂</span>Bugün</button>
+        <button class="nav-btn" data-panel="favoritesPanel"><span>★</span>Sık</button>
         <button class="nav-btn" data-panel="historyPanel"><span>◷</span>Geçmiş</button>
         <button class="nav-btn" data-panel="reportsPanel"><span>▥</span>Raporlar</button>
         <button class="nav-btn" data-panel="settingsPanel"><span>⚙</span>Ayarlar</button>

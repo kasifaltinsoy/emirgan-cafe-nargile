@@ -4,11 +4,11 @@
   "start_url": "./",
   "display": "standalone",
   "background_color": "#f8f6f1",
-  "theme_color": "#f7f4ee",
+  "theme_color": "#eef3ee",
   "description": "Kaşif ve Ayşe Merve için sipariş ve hesap takip uygulaması",
   "icons": [
     {
-      "src": "./icon.svg",
+      "src": "./logo-emirgan.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

@@ -26,7 +26,7 @@ import {
   updateDoc
 } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
 
-const APP_VERSION = "v8";
+const APP_VERSION = "v9";
 
 const CATEGORIES = [
   { id: "icecekler", label: "İçecekler", icon: "☕", color: "#e5f2f5" },
@@ -67,11 +67,13 @@ const state = {
   orders: [],
   priceHistory: [],
   dayStatus: {},
+  trash: [],
   search: "",
   unsubProducts: null,
   unsubOrders: null,
   unsubPriceHistory: null,
-  unsubDayStatus: null
+  unsubDayStatus: null,
+  unsubTrash: null
 };
 
 const views = { login: $("loginView"), member: $("memberView"), main: $("mainView") };
@@ -93,6 +95,30 @@ function localDateKey(date = new Date()) {
   return `${y}-${m}-${d}`;
 }
 function localMonthKey(date = new Date()) { return localDateKey(date).slice(0,7); }
+
+function getBillingCycle(date=new Date()){
+  const d=new Date(date.getFullYear(),date.getMonth(),date.getDate());
+  let start, end;
+  if(d.getDate()>=20){
+    start=new Date(d.getFullYear(),d.getMonth(),20);
+    end=new Date(d.getFullYear(),d.getMonth()+1,18);
+  }else{
+    start=new Date(d.getFullYear(),d.getMonth()-1,20);
+    end=new Date(d.getFullYear(),d.getMonth(),18);
+  }
+  return {startKey:localDateKey(start),endKey:localDateKey(end),start,end};
+}
+
+function ordersInCurrentCycle(){
+  const c=getBillingCycle();
+  return state.orders.filter(o=>o.dateKey>=c.startKey && o.dateKey<=c.endKey);
+}
+
+function cycleLabel(c=getBillingCycle()){
+  const f=d=>new Intl.DateTimeFormat("tr-TR",{day:"2-digit",month:"2-digit",year:"numeric"}).format(d);
+  return `${f(c.start)} – ${f(c.end)}`;
+}
+
 function displayDate(date = new Date()) {
   return new Intl.DateTimeFormat("tr-TR", { weekday:"long", day:"2-digit", month:"long", year:"numeric" }).format(date);
 }
@@ -133,7 +159,7 @@ async function ensureDefaults() {
 }
 
 function startRealtime() {
-  [state.unsubProducts,state.unsubOrders,state.unsubPriceHistory,state.unsubDayStatus].forEach(fn => fn && fn());
+  [state.unsubProducts,state.unsubOrders,state.unsubPriceHistory,state.unsubDayStatus,state.unsubTrash].forEach(fn => fn && fn());
 
   state.unsubProducts = onSnapshot(query(collection(db,"products"),orderBy("sortOrder")), snap => {
     state.products = snap.docs.map(d => ({id:d.id,...d.data()})); renderAll();
@@ -151,6 +177,11 @@ function startRealtime() {
     state.dayStatus = Object.fromEntries(snap.docs.map(d => [d.id,{id:d.id,...d.data()}]));
     renderToday();
   }, err => console.warn("days", err));
+
+  state.unsubTrash = onSnapshot(query(collection(db,"trash"),orderBy("deletedAt","desc")), snap => {
+    state.trash = snap.docs.map(d=>({id:d.id,...d.data()}));
+    renderTrash();
+  }, err => console.warn("trash",err));
 }
 
 function renderCategoryTabs() {
@@ -213,17 +244,12 @@ function bindProductButtons(root) {
 async function removeLastProductOrder(productId) {
   const matching = todayOrders().filter(o => o.productId===productId && o.member===state.activeMember).sort((a,b)=>orderDate(b)-orderDate(a));
   if (!matching.length) return toast("Geri alınacak sipariş yok.");
-  await deleteDoc(doc(db,"orders",matching[0].id)); toast(`${matching[0].productName} • 1 adet geri alındı`);
+  await moveOrderToTrash(matching[0].id); toast(`${matching[0].productName} • 1 adet çöp kutusuna taşındı`);
 }
 
 async function addOrder(productId,note="") {
   const product = state.products.find(p => p.id===productId);
   if (!product || !state.activeMember) return;
-  const day = state.dayStatus[localDateKey()];
-  if (day?.paid) {
-    const ok = confirm("Bugünün hesabı kapatılmış/ödendi olarak işaretlenmiş. Yine de yeni sipariş eklensin mi?");
-    if (!ok) return;
-  }
   const now = new Date();
   await addDoc(collection(db,"orders"), {
     productId:product.id, productName:product.name, category:product.category, member:state.activeMember,
@@ -274,10 +300,8 @@ function renderToday() {
     <span>Kaşif: ${money(totalOf(kasifOrders))} • Ayşe Merve: ${money(totalOf(ayseOrders))}</span>
   `;
 
-  const paid = !!state.dayStatus[localDateKey()]?.paid;
-  const btn = $("closeDayButton");
-  btn.textContent = paid ? "✓ Ödendi" : "Hesabı Kapat";
-  btn.classList.toggle("paid",paid);
+  const c=getBillingCycle();
+  if($("cycleBadge")) $("cycleBadge").textContent=`${cycleLabel(c)} • ödeme: 19'u`;
 
   const recent = today.slice(0,8);
   $("recentOrders").innerHTML = recent.length ? recent.map(orderRowHtml).join("") : `<div class="empty">Bugün henüz sipariş yok.</div>`;
@@ -304,7 +328,7 @@ function orderRowHtml(o,allowEditPrice=false) {
 function bindDeleteButtons(root) {
   root.querySelectorAll("[data-delete-order]").forEach(btn => btn.addEventListener("click",async()=>{
     if (!confirm("Bu sipariş kaydı silinsin mi?")) return;
-    await deleteDoc(doc(db,"orders",btn.dataset.deleteOrder)); toast("Sipariş silindi");
+    await moveOrderToTrash(btn.dataset.deleteOrder); toast("Sipariş çöp kutusuna taşındı");
   }));
   root.querySelectorAll("[data-edit-price]").forEach(btn => btn.addEventListener("click",async()=>{
     const order = state.orders.find(o=>o.id===btn.dataset.editPrice);
@@ -357,11 +381,10 @@ function renderHistory() {
   const key = $("historyDate").value || localDateKey();
   const orders = state.orders.filter(o=>o.dateKey===key).sort((a,b)=>orderDate(b)-orderDate(a));
   const known = orders.filter(o=>o.unitPrice!==null && o.unitPrice!==undefined).length;
-  const paid = !!state.dayStatus[key]?.paid;
   $("historySummary").innerHTML = `
     <div><span>Sipariş</span><strong>${orders.length}</strong></div>
     <div><span>Toplam</span><strong>${money(totalOf(orders))}</strong></div>
-    <div><span>Durum</span><strong>${paid?"✓ Ödendi":`${known}/${orders.length} fiyatlı`}</strong></div>`;
+    <div><span>Fiyatı Girilmiş</span><strong>${known}/${orders.length}</strong></div>`;
   $("historyOrders").innerHTML = orders.length ? orders.map(o=>orderRowHtml(o,true)).join("") : `<div class="empty">Bu tarihte kayıt bulunmuyor.</div>`;
   bindDeleteButtons($("historyOrders"));
 
@@ -369,11 +392,9 @@ function renderHistory() {
   const monthDays=[...new Set(state.orders.filter(o=>o.monthKey===month).map(o=>o.dateKey))].sort().reverse();
   $("historyDayStatusList").innerHTML = monthDays.length ? monthDays.map(day=>{
     const dayOrders=state.orders.filter(o=>o.dateKey===day);
-    const isPaid=!!state.dayStatus[day]?.paid;
     return `<button class="day-status-item" data-history-day="${day}">
       <span>${new Date(day+"T12:00:00").toLocaleDateString("tr-TR")}</span>
-      <strong>${money(totalOf(dayOrders))}</strong>
-      <em class="${isPaid?"paid":"unpaid"}">${isPaid?"✓ Ödendi":"Açık"}</em>
+      <strong>${dayOrders.length} ürün • ${money(totalOf(dayOrders))}</strong>
     </button>`;
   }).join("") : `<div class="empty">Bu ayda kayıt yok.</div>`;
   document.querySelectorAll("[data-history-day]").forEach(btn=>btn.addEventListener("click",()=>{
@@ -387,13 +408,17 @@ function renderReports() {
   if (state.reportPerson!=="Tümü") orders=orders.filter(o=>o.member===state.reportPerson);
   const days = new Set(orders.map(o=>o.dateKey)).size, total=totalOf(orders), avg=days?total/days:0;
 
-  const unpaidOrders = orders.filter(o => !state.dayStatus[o.dateKey]?.paid);
-  const unpaidTotal = totalOf(unpaidOrders);
+  const cycle=getBillingCycle();
+  const cycleOrders=ordersInCurrentCycle();
+  $("billingCycleCard").innerHTML=`
+    <div><span>Mevcut Hesap Dönemi</span><strong>${cycleLabel(cycle)}</strong></div>
+    <div><span>Dönem Toplamı</span><strong>${money(totalOf(cycleOrders))}</strong></div>
+    <div><span>Dönem Siparişi</span><strong>${cycleOrders.length} ürün</strong></div>
+    <div><span>Ödeme Günü</span><strong>Her ayın 19'u</strong></div>`;
 
   $("reportCards").innerHTML = `
     <div class="card report-card"><span>Toplam Sipariş</span><strong>${orders.length}</strong></div>
     <div class="card report-card"><span>Toplam Hesap</span><strong>${money(total)}</strong></div>
-    <div class="card report-card"><span>Açık Bakiye</span><strong>${money(unpaidTotal)}</strong></div>
     <div class="card report-card"><span>Aktif Gün Ortalaması</span><strong>${money(avg)}</strong></div>`;
 
   const grouped = new Map();
@@ -413,6 +438,8 @@ function renderReports() {
   ).join("") : `<div class="empty">Bu ay için kayıt bulunmuyor.</div>`;
 
   drawMonthlyChart(orders,month);
+  renderAdvancedStats(orders);
+  renderPriceIncreaseAnalysis();
 }
 
 function drawMonthlyChart(orders,month) {
@@ -435,6 +462,122 @@ function drawMonthlyChart(orders,month) {
     ctx.fillStyle="rgba(111,135,116,.65)"; ctx.fillRect(x-barW/2,y0,barW,bh);
     if ((i+1)%5===0 || i===0 || i===daysInMonth-1) { ctx.fillStyle=text; ctx.textAlign="center"; ctx.fillText(String(i+1),x,pad.t+h+16); }
   });
+}
+
+
+function renderAdvancedStats(orders){
+  const days=[...new Set(orders.map(o=>o.dateKey))];
+  const byDay=new Map();
+  orders.forEach(o=>byDay.set(o.dateKey,(byDay.get(o.dateKey)||0)+(Number(o.unitPrice)||0)));
+  const priciest=[...byDay.entries()].sort((a,b)=>b[1]-a[1])[0];
+
+  const hourMap=new Map();
+  orders.forEach(o=>{
+    const h=orderDate(o).getHours();
+    hourMap.set(h,(hourMap.get(h)||0)+1);
+  });
+  const peak=[...hourMap.entries()].sort((a,b)=>b[1]-a[1])[0];
+
+  const kasif=totalOf(orders.filter(o=>o.member==="Kaşif"));
+  const ayse=totalOf(orders.filter(o=>o.member==="Ayşe Merve"));
+  const total=kasif+ayse || 1;
+
+  let prevStart,prevEnd;
+  const reportMonth=$("reportMonth").value||localMonthKey();
+  const [yy,mm]=reportMonth.split("-").map(Number);
+  const prevMonth=`${mm===1?yy-1:yy}-${String(mm===1?12:mm-1).padStart(2,"0")}`;
+  const prevOrders=state.orders.filter(o=>o.monthKey===prevMonth);
+  const prevTotal=totalOf(prevOrders);
+  const currentTotal=totalOf(orders);
+  const change=prevTotal>0?((currentTotal-prevTotal)/prevTotal)*100:null;
+
+  $("advancedStats").innerHTML=`
+    <div><span>Kafeye Gidilen Gün</span><strong>${days.length}</strong></div>
+    <div><span>Ortalama Günlük Harcama</span><strong>${money(days.length?currentTotal/days.length:0)}</strong></div>
+    <div><span>En Pahalı Gün</span><strong>${priciest?`${priciest[0]} • ${money(priciest[1])}`:"—"}</strong></div>
+    <div><span>En Yoğun Saat</span><strong>${peak?`${String(peak[0]).padStart(2,"0")}:00–${String((peak[0]+1)%24).padStart(2,"0")}:00`:"—"}</strong></div>
+    <div><span>Kaşif Payı</span><strong>%${((kasif/total)*100).toFixed(1)}</strong></div>
+    <div><span>Ayşe Merve Payı</span><strong>%${((ayse/total)*100).toFixed(1)}</strong></div>
+    <div><span>Geçen Aya Göre</span><strong>${change===null?"—":`${change>=0?"+":""}${change.toFixed(1)}%`}</strong></div>
+  `;
+}
+
+function renderPriceIncreaseAnalysis(){
+  const grouped=new Map();
+  state.priceHistory.forEach(h=>{
+    if(h.oldPrice===null||h.oldPrice===undefined||h.newPrice===null||h.newPrice===undefined) return;
+    const arr=grouped.get(h.productId)||[];
+    arr.push(h); grouped.set(h.productId,arr);
+  });
+  const rows=[];
+  grouped.forEach((arr,productId)=>{
+    arr.sort((a,b)=>{
+      const da=a.changedAt?.toDate?a.changedAt.toDate():new Date(a.changedAtLocal||0);
+      const db=b.changedAt?.toDate?b.changedAt.toDate():new Date(b.changedAtLocal||0);
+      return da-db;
+    });
+    const first=Number(arr[0].oldPrice), last=Number(arr[arr.length-1].newPrice);
+    if(!Number.isFinite(first)||!Number.isFinite(last)||first<=0) return;
+    rows.push({name:arr[arr.length-1].productName,first,last,pct:((last-first)/first)*100});
+  });
+  rows.sort((a,b)=>Math.abs(b.pct)-Math.abs(a.pct));
+  $("priceIncreaseAnalysis").innerHTML=rows.length?rows.slice(0,12).map(r=>`
+    <div class="price-analysis-row">
+      <strong>${escapeHtml(r.name)}</strong>
+      <span>${money(r.first)} → ${money(r.last)}</span>
+      <em class="${r.pct>=0?"up":"down"}">${r.pct>=0?"+":""}${r.pct.toFixed(1)}%</em>
+    </div>`).join(""):`<div class="empty">Analiz için yeterli fiyat değişikliği yok.</div>`;
+}
+
+function renderPinnedFavorites(){
+  if(!$("pinnedFavoritesGrid")) return;
+  const pinned=sortTr(state.products.filter(p=>p.active!==false&&p.favoritePinned));
+  const today=todayOrders();
+  $("pinnedFavoritesGrid").innerHTML=pinned.length?pinned.map(p=>productCardHtml(p,today)).join(""):`<div class="empty">Henüz sabit favori seçmediniz. Ayarlar → Ürün ve Fiyatlar bölümünden ☆ Favori düğmesini kullanın.</div>`;
+  bindProductButtons($("pinnedFavoritesGrid"));
+}
+
+async function moveOrderToTrash(orderId){
+  const o=state.orders.find(x=>x.id===orderId);
+  if(!o) return;
+  const trashRef=doc(collection(db,"trash"));
+  await setDoc(trashRef,{
+    originalId:o.id,
+    orderData:{
+      productId:o.productId||"",productName:o.productName||"",category:o.category||"",
+      member:o.member||"",unitPrice:o.unitPrice??null,note:o.note||"",
+      dateKey:o.dateKey||"",monthKey:o.monthKey||"",createdAtLocal:o.createdAtLocal||orderDate(o).toISOString()
+    },
+    deletedBy:state.activeMember||"",deletedAtLocal:new Date().toISOString(),deletedAt:serverTimestamp()
+  });
+  await deleteDoc(doc(db,"orders",orderId));
+}
+
+function renderTrash(){
+  if(!$("trashList")) return;
+  $("trashList").innerHTML=state.trash.length?state.trash.map(t=>{
+    const o=t.orderData||{};
+    return `<div class="trash-row">
+      <div><strong>${escapeHtml(o.productName||"Sipariş")}</strong><span>${escapeHtml(o.member||"")} • ${o.dateKey||""} • ${money(o.unitPrice)}</span></div>
+      <div class="trash-actions">
+        <button class="secondary-btn trash-restore" data-restore-trash="${t.id}">Geri Al</button>
+        <button class="danger-btn trash-delete" data-delete-trash="${t.id}">Kalıcı Sil</button>
+      </div>
+    </div>`;
+  }).join(""):`<div class="empty">Çöp kutusu boş.</div>`;
+
+  document.querySelectorAll("[data-restore-trash]").forEach(btn=>btn.addEventListener("click",async()=>{
+    const t=state.trash.find(x=>x.id===btn.dataset.restoreTrash); if(!t)return;
+    const o=t.orderData||{};
+    await addDoc(collection(db,"orders"),{
+      ...o, createdAtLocal:o.createdAtLocal||new Date().toISOString(), createdAt:serverTimestamp()
+    });
+    await deleteDoc(doc(db,"trash",t.id)); toast("Sipariş geri yüklendi.");
+  }));
+  document.querySelectorAll("[data-delete-trash]").forEach(btn=>btn.addEventListener("click",async()=>{
+    if(!confirm("Bu kayıt çöp kutusundan kalıcı olarak silinsin mi?"))return;
+    await deleteDoc(doc(db,"trash",btn.dataset.deleteTrash)); toast("Kayıt kalıcı silindi.");
+  }));
 }
 
 function renderSettings() {
@@ -534,7 +677,7 @@ function renderPriceHistory() {
 }
 
 function renderAll() {
-  renderCategoryTabs(); renderProducts(); renderToday(); renderHistory(); renderReports(); renderSettings();
+  renderCategoryTabs(); renderProducts(); renderToday(); renderHistory(); renderReports(); renderSettings(); renderPinnedFavorites(); renderTrash();
 }
 
 function setupCategorySelects() {
@@ -565,7 +708,7 @@ function exportCsv(){
     const dt=orderDate(o);
     rows.push([
       o.dateKey, displayTime(dt), o.member, o.productName, categoryById(o.category).label,
-      o.unitPrice??"", o.note||"", state.dayStatus[o.dateKey]?.paid?"Ödendi":"Açık"
+      o.unitPrice??"", o.note||"", "Aylık dönem"
     ]);
   });
   const csv="\ufeff"+rows.map(r=>r.map(csvCell).join(";")).join("\r\n");
@@ -589,17 +732,17 @@ function runRangeReport(){
   if(start>end) return alert("Başlangıç tarihi bitiş tarihinden sonra olamaz.");
   let orders=state.orders.filter(o=>o.dateKey>=start&&o.dateKey<=end);
   if(state.reportPerson!=="Tümü") orders=orders.filter(o=>o.member===state.reportPerson);
-  const unpaid=orders.filter(o=>!state.dayStatus[o.dateKey]?.paid);
+  const activeDays=new Set(orders.map(o=>o.dateKey)).size;
   $("rangeReportResult").innerHTML=`
     <div><span>Sipariş</span><strong>${orders.length}</strong></div>
     <div><span>Toplam</span><strong>${money(totalOf(orders))}</strong></div>
-    <div><span>Açık Bakiye</span><strong>${money(totalOf(unpaid))}</strong></div>`;
+    <div><span>Aktif Gün</span><strong>${activeDays}</strong></div>`;
 }
 
 async function deleteOrdersForDate(dateKey){
   const orders=state.orders.filter(o=>o.dateKey===dateKey);
   if(!orders.length) return toast("Bu tarihte silinecek kayıt yok.");
-  await Promise.all(orders.map(o=>deleteDoc(doc(db,"orders",o.id))));
+  for(const o of orders) await moveOrderToTrash(o.id);
   if(state.dayStatus[dateKey]) await deleteDoc(doc(db,"days",dateKey));
 }
 
@@ -637,6 +780,7 @@ $("logoutFromMember").addEventListener("click",async()=>{await signOut(auth);sta
 document.querySelectorAll(".nav-btn").forEach(btn=>btn.addEventListener("click",()=>{
   document.querySelectorAll(".nav-btn").forEach(x=>x.classList.toggle("active",x===btn));
   document.querySelectorAll(".panel").forEach(p=>p.classList.toggle("active",p.id===btn.dataset.panel));
+  if(btn.dataset.panel==="favoritesPanel")renderPinnedFavorites();
   if(btn.dataset.panel==="historyPanel")renderHistory();
   if(btn.dataset.panel==="reportsPanel")renderReports();
   if(btn.dataset.panel==="settingsPanel")renderSettings();
@@ -663,21 +807,9 @@ $("undoLastButton").addEventListener("click",async()=>{
   const today=todayOrders(); if(!today.length)return toast("Geri alınacak sipariş yok.");
   const last=[...today].sort((a,b)=>orderDate(b)-orderDate(a))[0];
   if(!confirm(`${last.productName} siparişi geri alınsın mı?`))return;
-  await deleteDoc(doc(db,"orders",last.id));toast("Son sipariş geri alındı");
+  await moveOrderToTrash(last.id);toast("Son sipariş çöp kutusuna taşındı");
 });
 
-$("closeDayButton").addEventListener("click",async()=>{
-  const key=localDateKey(), paid=!!state.dayStatus[key]?.paid;
-  if(!paid){
-    if(!confirm(`Bugünün hesabı ${money(totalOf(todayOrders()))}. "Ödendi" olarak kapatılsın mı?`))return;
-    await setDoc(doc(db,"days",key),{paid:true,total:totalOf(todayOrders()),closedBy:state.activeMember,closedAtLocal:new Date().toISOString(),closedAt:serverTimestamp()},{merge:true});
-    toast("Bugünün hesabı ödendi olarak kapatıldı.");
-  } else {
-    if(!confirm("Bugünün hesabı yeniden açılsın mı?"))return;
-    await setDoc(doc(db,"days",key),{paid:false,reopenedBy:state.activeMember,reopenedAt:serverTimestamp()},{merge:true});
-    toast("Hesap yeniden açıldı.");
-  }
-});
 
 $("themeToggleButton").addEventListener("click",()=>{
   const dark=document.body.dataset.theme==="dark";
@@ -742,9 +874,17 @@ $("deleteSelectedDayButton").addEventListener("click",async()=>{
   await deleteOrdersForDate(key); toast("Seçilen gün sıfırlandı.");
 });
 
+
+$("emptyTrashButton").addEventListener("click",async()=>{
+  if(!state.trash.length) return toast("Çöp kutusu zaten boş.");
+  if(!confirm(`Çöp kutusundaki ${state.trash.length} kayıt kalıcı olarak silinsin mi?`)) return;
+  await Promise.all(state.trash.map(t=>deleteDoc(doc(db,"trash",t.id))));
+  toast("Çöp kutusu boşaltıldı.");
+});
+
 onAuthStateChanged(auth,async user=>{
   if(!user){
-    [state.unsubProducts,state.unsubOrders,state.unsubPriceHistory,state.unsubDayStatus].forEach(fn=>fn&&fn());
+    [state.unsubProducts,state.unsubOrders,state.unsubPriceHistory,state.unsubDayStatus,state.unsubTrash].forEach(fn=>fn&&fn());
     showView("login"); return;
   }
   try{
