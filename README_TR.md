@@ -29,3 +29,7 @@ adresine çevirir. Firebase Authentication > Users bölümünde aynı e-posta il
 ## Firestore Rules
 
 `firestore.rules` içeriğini Firebase Console > Firestore Database > Rules bölümüne yapıştırıp Publish düğmesine basın.
+
+
+## V4
+Kategori ikonları, otomatik sık siparişler, kişi bazlı günlük özet, hesabı kapat/ödendi, aylık grafik, en çok tüketilenler, ürün arama, fiyat geçmişi, notlu sipariş, sabit günlük toplam ve koyu mod eklendi.

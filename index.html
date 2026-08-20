@@ -69,7 +69,7 @@
 
       <main>
         <section id="todayPanel" class="panel active">
-          <div class="summary-strip">
+          <div class="summary-strip today-summary">
             <div>
               <span>Bugün</span>
               <strong id="todayOrderCount">0 ürün</strong>
@@ -78,7 +78,21 @@
               <span>Hesap</span>
               <strong id="todayTotal">₺0,00</strong>
             </div>
+            <button id="closeDayButton" class="close-day-btn">Hesabı Kapat</button>
           </div>
+
+          <div id="personTodaySummary" class="person-summary"></div>
+
+          <div class="search-wrap">
+            <input id="productSearch" type="search" placeholder="Ürün ara…" autocomplete="off" />
+          </div>
+
+          <section id="favoritesSection" class="favorites-section">
+            <div class="section-heading compact-heading">
+              <h3>⭐ Sık Siparişler</h3>
+            </div>
+            <div id="favoriteProducts" class="favorite-grid"></div>
+          </section>
 
           <div id="categoryTabs" class="category-tabs"></div>
           <div id="productGrid" class="product-grid"></div>
@@ -118,6 +132,19 @@
             <button class="filter-chip" data-report-person="Ayşe Merve">Ayşe Merve</button>
           </div>
           <div id="reportCards" class="report-cards"></div>
+
+          <div class="card chart-card">
+            <div class="section-heading compact-heading">
+              <h3>Günlük Harcama Grafiği</h3>
+            </div>
+            <canvas id="monthlyChart" height="220"></canvas>
+          </div>
+
+          <div class="card">
+            <h3>En Çok Tüketilenler</h3>
+            <div id="topProducts" class="top-products"></div>
+          </div>
+
           <div class="card">
             <h3>Ürün Bazında</h3>
             <div id="productReport" class="report-table"></div>
@@ -157,6 +184,19 @@
               <select id="settingsCategoryFilter"></select>
             </div>
             <div id="settingsProductList" class="settings-product-list"></div>
+          </div>
+
+          <div class="card settings-card">
+            <h3>Fiyat Geçmişi</h3>
+            <p class="settings-note">Ürün fiyatlarında yaptığınız değişiklikler burada tarih sırasıyla tutulur.</p>
+            <div id="priceHistoryList" class="price-history-list"></div>
+          </div>
+
+          <div class="card settings-card">
+            <h3>Görünüm</h3>
+            <div class="settings-actions">
+              <button id="themeToggleButton" class="secondary-btn">🌙 Koyu Moda Geç</button>
+            </div>
           </div>
 
           <div class="card settings-card">

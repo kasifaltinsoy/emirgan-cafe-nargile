@@ -215,3 +215,104 @@ main { max-width: 900px; margin: 0 auto; padding: 16px; }
 @media (max-width: 380px) {
   .product-grid { grid-template-columns: 1fr; }
 }
+
+
+/* ===== V4 geliştirmeleri ===== */
+.today-summary {
+  position: sticky;
+  top: 86px;
+  z-index: 15;
+  grid-template-columns: 1fr 1fr auto;
+  box-shadow: 0 10px 26px rgba(62,68,62,.08);
+}
+.close-day-btn {
+  align-self: stretch;
+  border: 0;
+  border-radius: 14px;
+  padding: 10px 14px;
+  background: #f2eadc;
+  color: #6f5e42;
+  font-weight: 800;
+}
+.close-day-btn.paid { background: #e1efe3; color: #4f6f56; }
+
+.person-summary { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; }
+.person-card {
+  display:grid; grid-template-columns:1fr auto; gap:3px 8px; align-items:center;
+  padding:12px 14px; border-radius:16px; background:#fff; border:1px solid var(--line);
+}
+.person-card span { color:var(--muted); font-size:12px; }
+.person-card strong { grid-row:1 / span 2; grid-column:2; font-size:14px; }
+.person-card em { font-style:normal; font-weight:800; }
+
+.search-wrap { margin-bottom:12px; }
+.search-wrap input { background:#fff; }
+
+.compact-heading { margin-bottom:10px; }
+.favorites-section { margin-bottom:14px; }
+.favorite-grid { display:flex; gap:8px; overflow-x:auto; padding-bottom:2px; }
+.favorite-btn {
+  min-width:132px; border:1px solid rgba(0,0,0,.05); border-radius:16px;
+  padding:11px 12px; background:var(--fav-bg,#fff); text-align:left; color:var(--text);
+}
+.favorite-btn span { font-size:18px; display:block; margin-bottom:3px; }
+.favorite-btn strong { display:block; font-size:12px; line-height:1.2; }
+.favorite-btn small { color:var(--muted); }
+
+.cat-icon { margin-right:6px; }
+.note-order-btn {
+  border:0; background:transparent; color:#738078; padding:0; font-size:11px; font-weight:750; text-align:left;
+}
+
+.chart-card { padding:16px; margin-bottom:14px; overflow:hidden; }
+#monthlyChart { display:block; width:100%; height:220px; }
+
+.top-products { display:grid; gap:6px; margin-top:10px; }
+.top-product {
+  display:grid; grid-template-columns:30px 1fr auto; align-items:center; gap:8px;
+  padding:10px 4px; border-top:1px solid var(--line);
+}
+.top-product:first-child { border-top:0; }
+.rank {
+  width:26px; height:26px; display:grid; place-items:center; border-radius:50%;
+  background:var(--primary-soft); font-weight:800; font-size:12px;
+}
+.settings-note { color:var(--muted); font-size:12px; margin-top:-4px; }
+.price-history-list { display:grid; gap:6px; }
+.price-history-row {
+  display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center;
+  padding:10px 2px; border-top:1px solid var(--line); font-size:12px;
+}
+.price-history-row:first-child { border-top:0; }
+.price-history-row span { display:block; color:var(--muted); margin-top:2px; }
+.price-history-row > div:last-child { font-weight:700; text-align:right; }
+
+/* Koyu mod */
+body[data-theme="dark"] {
+  --bg:#171a18; --surface:#202421; --text:#edf1ed; --muted:#a7afa8;
+  --line:#343a35; --primary:#8eaa95; --primary-soft:#2b392e; --shadow:0 10px 30px rgba(0,0,0,.28);
+  background:var(--bg); color:var(--text);
+}
+body[data-theme="dark"] .topbar { background:rgba(23,26,24,.94); border-color:var(--line); }
+body[data-theme="dark"] input,
+body[data-theme="dark"] select,
+body[data-theme="dark"] .summary-strip,
+body[data-theme="dark"] .person-card,
+body[data-theme="dark"] .search-wrap input,
+body[data-theme="dark"] .bottom-nav { background:#202421; color:var(--text); border-color:var(--line); }
+body[data-theme="dark"] .card { background:#202421; border-color:var(--line); }
+body[data-theme="dark"] .order-row,
+body[data-theme="dark"] .settings-product { background:#282d29; }
+body[data-theme="dark"] .favorite-btn,
+body[data-theme="dark"] .product-card { filter:brightness(.72) saturate(.75); color:#fff; }
+body[data-theme="dark"] .add-btn,
+body[data-theme="dark"] .minus-btn { background:rgba(30,34,31,.78); color:#f1f4f1; }
+body[data-theme="dark"] .category-tab { filter:brightness(.72) saturate(.75); color:#fff; }
+
+@media (max-width:640px){
+  .today-summary { top:82px; grid-template-columns:1fr 1fr; }
+  .today-summary .close-day-btn { grid-column:1 / -1; }
+  .person-summary { grid-template-columns:1fr 1fr; }
+  .price-history-row { grid-template-columns:1fr; }
+  .price-history-row > div:last-child { text-align:left; }
+}
