@@ -516,6 +516,20 @@ $("themeToggleButton").addEventListener("click",()=>{
   localStorage.setItem("emirganTheme",dark?"light":"dark");applyTheme();renderReports();
 });
 
+$("clearPriceHistoryButton").addEventListener("click", async ()=>{
+  if(!state.priceHistory.length) return toast("Silinecek fiyat geçmişi yok.");
+  const ok = confirm(`Fiyat geçmişindeki ${state.priceHistory.length} kayıt tamamen silinsin mi?\n\nBu işlem ürünlerin mevcut fiyatlarını ve geçmiş siparişleri etkilemez.`);
+  if(!ok) return;
+
+  try{
+    await Promise.all(state.priceHistory.map(h => deleteDoc(doc(db,"priceHistory",h.id))));
+    toast("Fiyat geçmişi sıfırlandı.");
+  }catch(err){
+    console.error(err);
+    alert("Fiyat geçmişi silinirken hata oluştu.");
+  }
+});
+
 onAuthStateChanged(auth,async user=>{
   if(!user){
     [state.unsubProducts,state.unsubOrders,state.unsubPriceHistory,state.unsubDayStatus].forEach(fn=>fn&&fn());

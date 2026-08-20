@@ -354,3 +354,11 @@ body[data-theme="dark"] .delete-product-btn {
     justify-content: flex-end;
   }
 }
+
+
+/* ===== V6 fiyat geçmişi sıfırlama ===== */
+.compact-danger {
+  width: auto;
+  padding: 10px 12px;
+  white-space: nowrap;
+}

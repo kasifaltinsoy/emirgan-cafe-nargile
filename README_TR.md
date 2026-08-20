@@ -37,3 +37,7 @@ Kategori ikonları, otomatik sık siparişler, kişi bazlı günlük özet, hesa
 
 ## V5
 Ürün adı düzenleme ve ürün silme eklendi. Ürün silinmesi geçmiş sipariş kayıtlarını etkilemez.
+
+
+## V6
+Fiyat Geçmişi bölümüne 'Geçmişi Sıfırla' butonu eklendi. Bu işlem yalnızca fiyat geçmişi kayıtlarını siler; mevcut ürün fiyatlarını ve geçmiş siparişleri etkilemez.
